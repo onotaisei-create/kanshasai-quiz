@@ -25,6 +25,32 @@ __CSS__
 .cfg ol{line-height:1.8}
 .hostbadge{font-size:11px;font-weight:700;color:#06224e;background:linear-gradient(180deg,var(--gold-hi),var(--gold));padding:3px 10px;border-radius:999px;margin-left:8px}
 .waitbig{font-family:var(--ds);font-weight:900;font-size:clamp(22px,6vw,34px);color:var(--gold-hi)}
+/* 正解発表：外れを暗くせず正解を目立たせる（本家準拠） */
+.panel{position:relative}
+.panel.wrong{opacity:1}
+.panel.correct{border-color:var(--gold);box-shadow:0 0 0 4px var(--gold-hi),0 0 34px rgba(255,61,176,.7);animation:winpop .45s ease-out}
+@keyframes winpop{0%{transform:scale(.97)}60%{transform:scale(1.03)}100%{transform:scale(1)}}
+.panel.correct::after{content:"正解";position:absolute;top:7px;right:7px;z-index:4;background:linear-gradient(180deg,#ff5cc0,#d4178a);color:#fff;font-weight:900;font-size:13px;padding:3px 12px;border-radius:7px;box-shadow:0 2px 8px rgba(0,0,0,.45)}
+/* 結果発表：DxL2HO2O42Y 風の動く青背景 */
+.rankstage{position:relative;overflow:hidden;background:
+   radial-gradient(circle at 18% 28%, rgba(255,255,255,.12),transparent 6%),
+   radial-gradient(circle at 72% 58%, rgba(255,255,255,.1),transparent 6%),
+   linear-gradient(130deg,#1b6fe8 0%,#0e45b4 48%,#0a2f86 100%)}
+.rankstage::before{content:"";position:absolute;inset:-25%;z-index:0;pointer-events:none;
+   background:repeating-linear-gradient(128deg, rgba(255,255,255,.05) 0 2px, transparent 2px 64px);animation:rstreak 9s linear infinite}
+@keyframes rstreak{to{transform:translate(64px,-64px)}}
+.rankstage::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:
+   radial-gradient(circle at 22% 32%, rgba(255,255,255,.12),transparent 4%),
+   radial-gradient(circle at 82% 22%, rgba(255,255,255,.1),transparent 3.4%),
+   radial-gradient(circle at 60% 76%, rgba(255,255,255,.1),transparent 4%),
+   radial-gradient(circle at 35% 86%, rgba(255,255,255,.08),transparent 3%),
+   radial-gradient(1.6px 1.6px at 48% 40%, rgba(255,232,130,.95),transparent 60%),
+   radial-gradient(1.6px 1.6px at 66% 64%, rgba(255,232,130,.8),transparent 60%);animation:rfloat 11s ease-in-out infinite alternate}
+@keyframes rfloat{to{transform:translateY(-16px)}}
+.rankstage>*{position:relative;z-index:1}
+.rbanner{z-index:3}
+.ranklist{height:58vh;min-height:300px;overflow:hidden}
+@media (prefers-reduced-motion:reduce){.rankstage::before,.rankstage::after,.panel.correct{animation:none}}
 </style>
 </head>
 <body>
@@ -102,6 +128,7 @@ __CSS__
     <div class="row center" style="justify-content:center;margin-top:8px">
       <button class="btn red" id="revealStart">発表スタート（最下位から）</button>
       <button class="btn" id="revealNext" hidden>第3位を発表</button>
+      <button class="btn red" id="endBtn" hidden>エンディングへ ▶</button>
       <button class="btn ghost sm" id="projBtn3">⛶ プロジェクター表示</button>
     </div>
   </section>
@@ -111,7 +138,7 @@ __CSS__
     <div class="big-center">
       <div class="waitbig">ようこそ！</div>
       <div class="hint">ニックネームを入れて参加</div>
-      <input class="pinput" id="joinName" placeholder="例：おの" maxlength="10" style="max-width:280px;margin:0 auto">
+      <input class="pinput" id="joinName" placeholder="ニックネーム太郎" maxlength="10" style="max-width:280px;margin:0 auto">
       <button class="btn" id="joinBtn" style="max-width:280px;margin:0 auto;width:100%">参加する</button>
       <div class="hint" id="joinErr" style="color:var(--bad)"></div>
     </div>
@@ -135,6 +162,13 @@ __CSS__
   <section id="view-player-result" hidden>
     <div class="big-center">
       <div class="waitbig" id="plResult">結果を待っています…</div>
+    </div>
+  </section>
+
+  <section id="view-end" hidden>
+    <div class="big-center">
+      <div style="font-size:48px">🎉</div>
+      <div class="waitbig" id="endMsg"></div>
     </div>
   </section>
 </div>
@@ -164,14 +198,19 @@ function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replac
 function clk(ms){const s=ms/1000,m=Math.floor(s/60),r=s-m*60;return m+":"+(r<10?"0":"")+r.toFixed(2);}
 const SAMPLE_IMGS=__IMGS_JSON__;
 
-/* BGM */
+/* BGM / SFX */
 const BGM_SRC="data:audio/mpeg;base64,__BGM_B64__";
-let bgm=null,muted=false;
+const REVEAL_SRC="data:audio/mpeg;base64,__REVEAL_B64__";
+const RESULT_SRC="data:audio/mpeg;base64,__RESULT_B64__";
+let bgm=null,sfx=null,resbgm=null,muted=false;
 function bgmPlay(){try{if(!bgm){bgm=new Audio(BGM_SRC);bgm.volume=.7;}if(muted)return;bgm.currentTime=0;bgm.play().catch(()=>{});}catch(e){}}
 function bgmStop(){try{if(bgm)bgm.pause();}catch(e){}}
-$("#mute").onclick=()=>{muted=!muted;$("#mute").textContent=muted?"🔇":"🔊";if(muted)bgmStop();};
+function sfxReveal(){try{if(!sfx)sfx=new Audio(REVEAL_SRC);if(muted)return;sfx.currentTime=0;sfx.play().catch(()=>{});}catch(e){}}
+function resultPlay(){try{if(!resbgm){resbgm=new Audio(RESULT_SRC);resbgm.loop=true;resbgm.volume=.6;}if(muted)return;resbgm.currentTime=0;resbgm.play().catch(()=>{});}catch(e){}}
+function resultStop(){try{if(resbgm)resbgm.pause();}catch(e){}}
+$("#mute").onclick=()=>{muted=!muted;$("#mute").textContent=muted?"🔇":"🔊";if(muted){bgmStop();resultStop();try{if(sfx)sfx.pause();}catch(e){}}};
 
-function show(id){["view-config","view-host-home","view-host-lobby","view-host-q","view-host-results","view-join","view-player-lobby","view-player-q","view-player-result"].forEach(v=>{const e=document.getElementById(v);if(e)e.hidden=(v!==id);});}
+function show(id){["view-config","view-host-home","view-host-lobby","view-host-q","view-host-results","view-join","view-player-lobby","view-player-q","view-player-result","view-end"].forEach(v=>{const e=document.getElementById(v);if(e)e.hidden=(v!==id);});}
 
 /* ---------- board rendering (shared) ---------- */
 function panelMarkup(c,i){
@@ -201,7 +240,7 @@ function startCountdown(stageEl,lim,onZero){
   return ()=>cancelAnimationFrame(cdRAF);
 }
 function applyReveal(stageEl,q,counts){
-  cancelAnimationFrame(cdRAF);
+  cancelAnimationFrame(cdRAF);bgmStop();sfxReveal();
   const cn=stageEl.querySelector("[data-cnum]");if(cn)cn.textContent="0";
   stageEl.querySelectorAll(".panel").forEach(el=>{const i=+el.dataset.i,c=el.querySelector(".cnt");
     if(c){c.hidden=false;c.textContent=(counts[i]||0)+"人";}
@@ -343,38 +382,35 @@ function hostResults(){
   });
 }
 
-/* results reveal (10 at a time) — host only */
-let ranked=[],paceMul=1.6,blocks=[],phase="idle",topN=3,autoT=0;
-function setupResults(){
-  blocks=[];for(let hi=ranked.length;hi>=11;hi-=10){const lo=Math.max(11,hi-9),arr=[];for(let r=lo;r<=hi;r++)arr.push(r);blocks.push(arr);}
-  phase="idle";topN=3;if(autoT)clearTimeout(autoT);
-  $("#ranklist").innerHTML="";$("#rrange").textContent="";$("#winbar").textContent="";
-  $("#revealStart").hidden=false;$("#revealNext").hidden=true;
-}
+/* results reveal — 一人ずつスクロール（W1UfN6bsnS4 準拠）, 3位からボタン */
+let ranked=[],paceMul=1.6,phase="idle",topN=3,autoT=0,rp=0;
 function rowEl(r){return $(`.rrow[data-r="${r}"]`);}
 function rowHTML(r){const p=ranked[r-1];return `<div class="rrow" data-r="${r}"><span class="rr tnum">${r}</span><span class="rn">${esc(p.name)}</span><span class="rq tnum">${p.correct}問</span><span class="rtime tnum">${clk(p.ms)}</span></div>`;}
-function maskHTML(r){return `<div class="rrow on masked" data-r="${r}"><span class="rr tnum">${r}</span><span class="rn">？ ？ ？</span><span class="rq"></span><span class="rtime"></span></div>`;}
-function holdMs(){return 2600*paceMul;}
-function renderPage(arr){$("#rrange").textContent=`${arr[0]}〜${arr[arr.length-1]}位`;$("#ranklist").innerHTML=arr.map(rowHTML).join("");
-  const rows=$$("#ranklist .rrow"),n=rows.length,st=Math.min(170,holdMs()/12);
-  rows.forEach((el,i)=>setTimeout(()=>el.classList.add("on","flash"),(n-1-i)*st));
-  rows.forEach((el,i)=>setTimeout(()=>el.classList.remove("flash"),(n-1-i)*st+420));}
-$("#revealStart").onclick=()=>{$("#revealStart").hidden=true;$("#revealNext").hidden=false;$("#revealNext").textContent="次の10人へ ▶";
-  if(blocks.length){phase="pages";pageIdx=0;renderPage(blocks[0]);scheduleAuto();}else startTop10();};
-let pageIdx=0;
-function scheduleAuto(){if(autoT)clearTimeout(autoT);autoT=setTimeout(nextPage,holdMs()+700);}
-function nextPage(){if(phase!=="pages")return;if(autoT)clearTimeout(autoT);if(pageIdx<blocks.length-1){pageIdx++;renderPage(blocks[pageIdx]);scheduleAuto();}else startTop10();}
-function startTop10(){phase="top";topN=Math.min(3,ranked.length);if(autoT)clearTimeout(autoT);$("#rrange").textContent="トップ10";
-  const top=Math.min(10,ranked.length);let html="";for(let r=1;r<=top;r++)html+=(r<=3?maskHTML(r):rowHTML(r));$("#ranklist").innerHTML=html;
-  for(let r=top;r>=4;r--){const el=rowEl(r);if(el)setTimeout(()=>el.classList.add("on"),(top-r)*120);}
-  $("#revealNext").textContent="第"+topN+"位を発表";}
-$("#revealNext").onclick=()=>{if(phase==="pages"){nextPage();return;}if(phase!=="top")return;
-  const btn=$("#revealNext");btn.disabled=true;const r=topN,p=ranked[r-1],win=r===1,el=rowEl(r);
-  setTimeout(()=>{if(el){el.classList.remove("masked");el.classList.add("on");el.querySelector(".rn").textContent=p.name;
-    const q=el.querySelector(".rq");q.textContent=p.correct+"問";q.className="rq tnum";const t=el.querySelector(".rtime");t.textContent=clk(p.ms);t.className="rtime tnum";
-    setTimeout(()=>el.classList.add(win?"win":"top"),130);}
+function setupResults(){
+  phase="idle";topN=Math.min(3,ranked.length);if(autoT)clearTimeout(autoT);
+  $("#ranklist").innerHTML=ranked.map((p,i)=>rowHTML(i+1)).join("");
+  $("#rrange").textContent="";$("#winbar").textContent="";
+  $("#revealStart").hidden=false;$("#revealNext").hidden=true;$("#endBtn").hidden=true;
+}
+function scrollToRank(r){const list=$("#ranklist"),el=rowEl(r);if(!el)return;const top=el.offsetTop-list.clientHeight/2+el.clientHeight/2;list.scrollTo({top:Math.max(0,top),behavior:"smooth"});}
+function stepDelay(){const b=rp>20?480:(rp>8?720:1000);return b*paceMul;}
+function autoStep(){
+  if(rp<=3){beginTop3();return;}
+  const el=rowEl(rp);if(el){el.classList.add("on","flash");scrollToRank(rp);const cur=rp;setTimeout(()=>{const e=rowEl(cur);if(e)e.classList.remove("flash");},Math.min(700,stepDelay()*.6));}
+  $("#rrange").textContent="あと "+(rp-3)+" 人…";
+  rp--;autoT=setTimeout(autoStep,stepDelay());
+}
+function beginTop3(){phase="top";topN=Math.min(3,ranked.length);$("#rrange").textContent="いよいよトップ3！";$("#revealNext").hidden=false;$("#revealNext").textContent="第"+topN+"位を発表";}
+$("#revealStart").onclick=()=>{$("#revealStart").hidden=true;resultPlay();rp=ranked.length;const list=$("#ranklist");list.scrollTop=list.scrollHeight;phase="pages";autoStep();};
+$("#revealNext").onclick=()=>{
+  if(phase!=="top")return;const btn=$("#revealNext");btn.disabled=true;
+  const r=topN,p=ranked[r-1],win=r===1,el=rowEl(r);
+  setTimeout(()=>{if(el){el.classList.add("on","flash");scrollToRank(r);setTimeout(()=>{el.classList.remove("flash");el.classList.add(win?"win":"top");},450);}
     if(win&&p){$("#winbar").textContent="🏆 優勝 "+p.name+"（"+p.correct+"問 / "+clk(p.ms)+"）";burst();}
-    topN--;btn.disabled=false;if(topN>=1)btn.textContent="第"+topN+"位を発表";else btn.hidden=true;},700);};
+    topN--;btn.disabled=false;if(topN>=1)btn.textContent="第"+topN+"位を発表";else{btn.hidden=true;$("#endBtn").hidden=false;}
+  },800);
+};
+$("#endBtn").onclick=()=>{resultStop();if(roomRef)roomRef.child("state").update({phase:"ending"});$("#endMsg").innerHTML="ご参加ありがとうございました！<br><span style='font-size:.6em;color:var(--gold-hi)'>🏆 上位3名の方は前へお越しください</span>";show("view-end");};
 $$("#pace .pacebtn").forEach(b=>b.onclick=()=>{paceMul=parseFloat(b.dataset.p);$$("#pace .pacebtn").forEach(x=>x.setAttribute("aria-pressed",x===b));});
 
 /* ---------- PLAYER ---------- */
@@ -402,6 +438,7 @@ function playerOnState(st){
     }
   } else if(phase==="reveal"){ playerReveal(st.qIndex); }
   else if(phase==="results"){ playerResult(); }
+  else if(phase==="ending"){ $("#endMsg").innerHTML="ご参加ありがとうございました！🎉"; show("view-end"); }
   lastPhase=phase;
 }
 function renderPlayerQ(i){
@@ -433,16 +470,12 @@ function playerReveal(i){
     applyReveal(st,q,counts);
     $("#pConfirm").hidden=false;$("#pConfirm").disabled=true;
     $("#pConfirm").textContent= my? (my.correct?("正解！ "+(my.ms/1000).toFixed(1)+"秒"):"残念…"):"未回答";
-    $("#pConfirm").style.background= my&&my.correct? "linear-gradient(180deg,#ff6ec0,#d4178a)":"";
   });
   bgmStop();
 }
 function playerResult(){
-  roomRef.child("results").once("value").then(s=>{const list=s.val()||[];const me=list.find(x=>x.uid===uid);
-    show("view-player-result");
-    if(me){$("#plResult").innerHTML=`あなたは <span style="color:var(--gold-hi)">第${me.rank}位</span><br><span style="font-size:.6em;color:var(--muted)">正解 ${me.correct}問 / 合計 ${clk(me.ms)}秒</span>`;if(me.rank===1)burst();}
-    else $("#plResult").textContent="結果発表中…（進行役の画面をご覧ください）";
-  });
+  show("view-player-result");
+  $("#plResult").innerHTML='結果発表中！<br><span style="font-size:.5em;color:var(--muted)">プロジェクター（前の画面）にご注目ください 👀</span>';
 }
 
 /* ---------- start ---------- */
