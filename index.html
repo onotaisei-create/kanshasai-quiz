@@ -255,14 +255,17 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
   .wrap{padding-inline:12px}
   .stage{padding:10px}
   /* モバイルは横向きレイアウト（質問は上に横書き・2x2パネルは全幅で大きく） */
-  .qcol{order:-1;flex-direction:row;align-items:center;gap:8px}
+  .qcol{order:-1;flex-direction:row;align-items:center;gap:8px;padding:2px 2px 0}
   .qcol-logo{display:none}
-  .qbadge{width:34px;height:34px;font-size:18px;border-radius:8px}
-  .qvert{flex:1;width:auto;min-height:0;padding:9px 12px;border-radius:10px}
+  .qbadge{flex:0 0 auto;width:34px;height:34px;font-size:18px;border-radius:8px}
+  .qvert{flex:1;width:auto;min-height:0;padding:8px 12px;border-radius:10px}
   .qvert span{writing-mode:horizontal-tb;font-size:18px;line-height:1.3;letter-spacing:0;white-space:normal}
-  .count{width:58px;height:58px;margin-left:auto}
-  .count .cnum{font-size:30px}
+  .count{flex:0 0 auto;width:46px;height:46px;margin-left:auto;
+    box-shadow:0 0 0 3px rgba(255,255,255,.9),0 0 0 5px rgba(0,0,0,.25),0 3px 8px rgba(0,0,0,.4)}
+  .count .cnum{font-size:24px}
   .panel .body{min-height:32vw}
+  /* 練習バッジは重ねず、上に通常配置 */
+  .pracbadge{position:static;display:inline-block;margin:0 0 8px;font-size:13px}
 }
 
 /* app-specific */
@@ -337,6 +340,9 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
 /* プロジェクター時の進行ヒント */
 .projhint{display:none;position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:80;background:rgba(0,0,0,.55);color:#fff;font-weight:700;font-size:13px;padding:7px 18px;border-radius:999px;border:1px solid var(--line)}
 body.projector .projhint{display:block}
+/* テスト用スマホ枠 */
+.testframe{display:flex;justify-content:center}
+.testframe iframe{width:390px;height:810px;max-width:100%;border:11px solid #0a0a0a;border-radius:36px;background:#06205e;box-shadow:0 22px 64px rgba(0,0,0,.55)}
 /* モバイル：固定箱サイズを解除して横向き・全幅・大きめに（デスクトップ/投影は縦のまま） */
 @media(max-width:560px){
   .stagegrid{height:auto;grid-template-rows:auto;grid-template-columns:1fr;gap:8px}
@@ -345,6 +351,7 @@ body.projector .projhint{display:block}
   .panel .no{flex:0 0 28px;height:28px;font-size:14px}
   .panel .nm{font-size:16px}
   .panel .cnt{font-size:15px}
+  .pracbadge{position:static;display:inline-block;margin:0 0 8px;font-size:13px}
 }
 </style>
 </head>
@@ -378,9 +385,21 @@ body.projector .projhint{display:block}
     <div class="admintop">
       <div><h2 style="font-family:var(--ds);font-size:clamp(19px,4vw,24px)">クイズを作る<span class="hostbadge">進行役</span></h2>
       <p class="hint" style="margin:4px 0 0">問題を作って「ルームを作成」。参加者はQRで入れます（アカウント不要）。自動保存（この端末）。</p></div>
-      <button class="btn red" id="createRoom">ルームを作成 ▶</button>
+      <div class="row" style="gap:8px">
+        <button class="btn" id="testBtn">▶ 70人でテスト</button>
+        <button class="btn red" id="createRoom">ルームを作成 ▶</button>
+      </div>
     </div>
     <div id="admin-list" class="mt"></div>
+  </section>
+
+  <section id="view-test" hidden>
+    <div class="row center" style="justify-content:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <button class="btn ghost sm" id="testBack">← 作成に戻る</button>
+      <span class="hint">スマホ実寸で70人が自動回答→結果発表まで。中はスペース／ボタンで進みます</span>
+      <button class="btn ghost sm" id="testReload">↻ やり直す</button>
+    </div>
+    <div class="testframe"><iframe id="testIframe" title="テストプレビュー"></iframe></div>
   </section>
 
   <section id="view-host-lobby" hidden>
@@ -509,7 +528,7 @@ function resultPlay(){if(!isHost)return;try{if(!resbgm){resbgm=new Audio(RESULT_
 function resultStop(){try{if(resbgm)resbgm.pause();}catch(e){}}
 $("#mute").onclick=()=>{muted=!muted;$("#mute").textContent=muted?"🔇":"🔊";if(muted){bgmStop();resultStop();try{if(sfx)sfx.pause();}catch(e){}}};
 
-function show(id){["view-config","view-host-home","view-host-lobby","view-host-q","view-host-results","view-join","view-player-lobby","view-player-q","view-player-result","view-end"].forEach(v=>{const e=document.getElementById(v);if(e)e.hidden=(v!==id);});}
+function show(id){["view-config","view-host-home","view-test","view-host-lobby","view-host-q","view-host-results","view-join","view-player-lobby","view-player-q","view-player-result","view-end"].forEach(v=>{const e=document.getElementById(v);if(e)e.hidden=(v!==id);});}
 
 /* ---------- board rendering (shared) ---------- */
 function panelMarkup(c,i){
@@ -637,6 +656,7 @@ let roomRef=null,stateRef=null,Q=[],lastPhase=null,lastQ=-1;
 function cfgOk(){return firebaseConfig.apiKey&&firebaseConfig.apiKey!=="PASTE_HERE"&&firebaseConfig.databaseURL;}
 
 function boot(){
+  if(new URLSearchParams(location.search).get("test")){testMain();return;}
   if(!cfgOk()){show("view-config");return;}
   firebase.initializeApp(firebaseConfig);auth=firebase.auth();db=firebase.database();
   auth.signInAnonymously().catch(e=>{console.log("auth error",e);});
@@ -797,8 +817,52 @@ function playerResult(){
   $("#plResult").innerHTML='結果発表中！<br><span style="font-size:.5em;color:var(--muted)">プロジェクター（前の画面）にご注目ください 👀</span>';
 }
 
+/* ===== テストモード（70人シミュレーション・Firebase不要・?test=1） ===== */
+const TSUR=["佐藤","鈴木","高橋","田中","渡辺","伊藤","山本","中村","小林","加藤","吉田","山田","佐々木","山口","松本","井上","木村","林","清水","山崎","森","池田","橋本","阿部","石川","前田","藤田","後藤","岡田","長谷川","村上","近藤","石井","斎藤","坂本","遠藤","青木","藤井","西村","福田","太田","三浦","岡本","松田","中川","中野","原田","小野","田村","竹内"];
+const TGIV=["翔","大輔","健","彩","美咲","拓也","結衣","涼","直樹","葵","陸","莉子","悠真","さくら","蓮","凛","颯太","芽依","大和","陽菜","駿","航","七海","亮","楓","誠","杏","隼人","瑞希","春","千尋","理央"];
+let testP=[],testIdx=0,testPerQ=[],testRAF=0;
+function testMain(){
+  isHost=true;testP=[];const used=new Set();
+  for(let i=0;i<70;i++){let nm;do{nm=TSUR[Math.random()*TSUR.length|0]+TGIV[Math.random()*TGIV.length|0];}while(used.has(nm)&&used.size<1400);used.add(nm);testP.push({name:nm,correct:0,ms:0,skill:.35+Math.random()*.6,speed:1.1+Math.random()*6.5});}
+  $("#hReveal").onclick=testReveal;$("#hNext").onclick=()=>testLoadQ(testIdx+1);$("#hToResults").onclick=testResults;
+  testLoadQ(0);
+}
+function testLoadQ(i){
+  testIdx=i;const q=questions[i];if(!q){testResults();return;}
+  show("view-host-q");const st=$("#hStage");st.innerHTML=boardHTML(q);fitQ(st);
+  $("#hReveal").hidden=false;$("#hNext").hidden=true;$("#hToResults").hidden=true;
+  const lim=q.time||10;
+  testPerQ=testP.map(p=>{const correct=Math.random()<p.skill;let pick=q.answer;if(!correct){do{pick=Math.random()*4|0;}while(pick===q.answer);}let ms=Math.round((p.speed+Math.random()*2.2)*1000);if(ms>lim*1000)ms=lim*1000;return{p,pick,correct,ms};}).sort((a,b)=>a.ms-b.ms);
+  bgmPlay();
+  let idx=0;const start=performance.now(),lt=st.querySelector("[data-livetext]");
+  if(testRAF)cancelAnimationFrame(testRAF);
+  const tick=()=>{const el=(performance.now()-start)/1000,rem=Math.max(0,lim-el);
+    const cn=st.querySelector("[data-cnum]");if(cn)cn.textContent=Math.ceil(rem);
+    const cc=st.querySelector(".count");if(cc)cc.classList.toggle("low",rem<=3&&rem>0);
+    while(idx<70&&testPerQ[idx].ms<=el*1000)idx++;
+    if(lt)lt.textContent=idx+" / 70 人が回答";
+    if(rem<=0){if(cn)cn.textContent="0";if(cc)cc.classList.remove("low");if(lt)lt.innerHTML="時間切れ — <b style='color:var(--gold-hi)'>正解発表</b>（スペース）";return;}
+    testRAF=requestAnimationFrame(tick);};
+  testRAF=requestAnimationFrame(tick);
+}
+function testReveal(){
+  if(testRAF)cancelAnimationFrame(testRAF);
+  const q=questions[testIdx],counts=[0,0,0,0];
+  testPerQ.forEach(a=>{counts[a.pick]++;});
+  if(!q.practice)testPerQ.forEach(a=>{if(a.correct)a.p.correct++;a.p.ms+=a.ms;});
+  applyReveal($("#hStage"),q,counts);
+  $("#hReveal").hidden=true;if(testIdx<questions.length-1)$("#hNext").hidden=false;else $("#hToResults").hidden=false;
+}
+function testResults(){
+  ranked=testP.map(p=>({name:p.name,correct:p.correct,ms:p.ms})).sort((a,b)=>b.correct-a.correct||a.ms-b.ms);
+  show("view-host-results");setupResults();
+}
+
 /* ---------- start ---------- */
 wireEditor();
+const _testBtn=$("#testBtn");if(_testBtn)_testBtn.onclick=()=>{$("#testIframe").src=location.pathname+"?test=1";show("view-test");};
+const _testBack=$("#testBack");if(_testBack)_testBack.onclick=()=>{$("#testIframe").src="about:blank";show("view-host-home");renderEditor();};
+const _testReload=$("#testReload");if(_testReload)_testReload.onclick=()=>{$("#testIframe").src=location.pathname+"?test=1";};
 boot();
 window.addEventListener("resize",()=>{const cv=$("#confetti");if(!cv.hidden){cv.width=innerWidth;cv.height=innerHeight;}
   if(!$("#view-host-q").hidden)fitQ($("#hStage"));if(!$("#view-player-q").hidden)fitQ($("#pStage"));});
