@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>感謝祭クイズ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Noto+Serif+JP:wght@700;900&family=Oswald:wght@500;600;700&display=swap">
+<style>
+html,body{margin:0}
+[hidden]{display:none!important}
+img{max-width:100%}
+__CSS__
+/* app-specific */
+.lobby-card{background:linear-gradient(180deg,rgba(26,92,214,.5),rgba(8,32,90,.72));border:1px solid var(--line);border-radius:18px;padding:22px;text-align:center}
+#qrbox{display:inline-block;background:#fff;padding:14px;border-radius:14px;margin:12px 0}
+.code{font-family:var(--num);font-weight:700;font-size:clamp(34px,9vw,54px);letter-spacing:.18em;color:var(--gold-hi);text-shadow:0 2px 4px rgba(0,0,0,.4)}
+.joinurl{font-size:12px;color:var(--muted);word-break:break-all;background:rgba(3,16,52,.5);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;margin-top:6px}
+.players{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:14px 0}
+.pchip{background:rgba(3,16,52,.5);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:700;font-size:14px}
+.big-center{min-height:60vh;display:grid;place-content:center;gap:14px;text-align:center}
+.cfg{max-width:720px;margin:0 auto}
+.cfg pre{background:#0b1a3d;border:1px solid var(--line2);border-radius:10px;padding:12px;overflow:auto;font-size:12px;color:#cfe0ff}
+.cfg ol{line-height:1.8}
+.hostbadge{font-size:11px;font-weight:700;color:#06224e;background:linear-gradient(180deg,var(--gold-hi),var(--gold));padding:3px 10px;border-radius:999px;margin-left:8px}
+.waitbig{font-family:var(--ds);font-weight:900;font-size:clamp(22px,6vw,34px);color:var(--gold-hi)}
+</style>
+</head>
+<body>
+<button class="btn ghost sm projexit" id="projExit" hidden>× 通常表示に戻す</button>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand"><span class="eyebrow">ALL STAR</span><span class="logo">感謝祭<span class="star">★</span>クイズ</span></div>
+    <div class="topright"><button class="mute" id="mute" title="BGM">🔊</button></div>
+  </div>
+
+  <!-- CONFIG NEEDED -->
+  <section id="view-config" class="cfg" hidden>
+    <div class="card">
+      <h2 style="font-family:var(--ds)">初期設定（最初の1回だけ）</h2>
+      <p class="lead mt">このアプリを動かすには、無料のFirebaseにつなぐ必要があります。下の手順で <b>firebaseConfig</b> を <code>index.html</code> 内の該当箇所に貼り替えてください。</p>
+      <ol>
+        <li><a href="https://console.firebase.google.com/" target="_blank">Firebaseコンソール</a>でプロジェクト作成</li>
+        <li>「Authentication」→ ログイン方法 → <b>匿名</b>を有効化</li>
+        <li>「Realtime Database」を作成（テストモードでOK）</li>
+        <li>プロジェクト設定 → マイアプリ → Webアプリ追加 → 表示される <b>firebaseConfig</b> をコピー</li>
+        <li><code>index.html</code> の <code>const firebaseConfig = {...}</code> に貼り替えて再デプロイ</li>
+      </ol>
+      <p class="hint">詳しい手順は README.md を見てください。</p>
+    </div>
+  </section>
+
+  <!-- ============ HOST ============ -->
+  <section id="view-host-home" hidden>
+    <div class="admintop">
+      <div><h2 style="font-family:var(--ds);font-size:clamp(19px,4vw,24px)">クイズを作る<span class="hostbadge">進行役</span></h2>
+      <p class="hint" style="margin:4px 0 0">問題を作って「ルームを作成」。参加者はQRで入れます（アカウント不要）。自動保存（この端末）。</p></div>
+      <button class="btn red" id="createRoom">ルームを作成 ▶</button>
+    </div>
+    <div id="admin-list" class="mt"></div>
+  </section>
+
+  <section id="view-host-lobby" hidden>
+    <div class="lobby-card">
+      <h2 style="font-family:var(--ds)">参加者募集中<span class="hostbadge">進行役</span></h2>
+      <p class="hint">スマホのカメラでQRを読み取って参加</p>
+      <div id="qrbox"></div>
+      <div class="code" id="roomCode"></div>
+      <div class="joinurl" id="joinUrl"></div>
+      <div style="margin-top:10px">参加者 <b id="pcount">0</b> 人</div>
+      <div class="players" id="players"></div>
+      <div class="row center" style="justify-content:center;margin-top:8px">
+        <button class="btn red" id="startQuiz">クイズを開始</button>
+        <button class="btn ghost sm" id="projBtn">⛶ プロジェクター表示</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-host-q" hidden>
+    <div class="stage" id="hStage"></div>
+    <div class="row mt center" style="justify-content:center">
+      <button class="btn" id="hReveal">解答締め切り・正解発表</button>
+      <button class="btn blue" id="hNext" hidden>次の問題へ</button>
+      <button class="btn red" id="hToResults" hidden>個人成績ランキングへ</button>
+      <button class="btn ghost sm" id="projBtn2">⛶ プロジェクター表示</button>
+    </div>
+  </section>
+
+  <section id="view-host-results" hidden>
+    <div class="rankstage">
+      <div class="rbanner"><span>個人成績ランキング</span></div>
+      <div class="rhead"><div class="rt">個人成績ランキング</div><div class="rs">正解数が多い順／同数は合計解答タイムが短い順</div><span class="rrange" id="rrange"></span></div>
+      <div class="ranklist" id="ranklist"></div>
+      <div class="winbar" id="winbar"></div>
+    </div>
+    <div class="pace mt" id="pace">発表ペース：
+      <button class="pacebtn" data-p="0.6">はやめ</button>
+      <button class="pacebtn" data-p="1">ふつう</button>
+      <button class="pacebtn" data-p="1.6" aria-pressed="true">ゆっくり</button>
+    </div>
+    <div class="row center" style="justify-content:center;margin-top:8px">
+      <button class="btn red" id="revealStart">発表スタート（最下位から）</button>
+      <button class="btn" id="revealNext" hidden>第3位を発表</button>
+      <button class="btn ghost sm" id="projBtn3">⛶ プロジェクター表示</button>
+    </div>
+  </section>
+
+  <!-- ============ PLAYER ============ -->
+  <section id="view-join" hidden>
+    <div class="big-center">
+      <div class="waitbig">ようこそ！</div>
+      <div class="hint">ニックネームを入れて参加</div>
+      <input class="pinput" id="joinName" placeholder="例：おの" maxlength="10" style="max-width:280px;margin:0 auto">
+      <button class="btn" id="joinBtn" style="max-width:280px;margin:0 auto;width:100%">参加する</button>
+      <div class="hint" id="joinErr" style="color:var(--bad)"></div>
+    </div>
+  </section>
+
+  <section id="view-player-lobby" hidden>
+    <div class="big-center">
+      <div class="waitbig" id="plWelcome">待機中…</div>
+      <div class="hint">進行役が出題するまでお待ちください</div>
+      <div class="pcount tnum" style="font-size:40px;color:var(--gold-hi)">🎉</div>
+    </div>
+  </section>
+
+  <section id="view-player-q" hidden>
+    <div class="stage" id="pStage"></div>
+    <div class="row mt center" style="justify-content:center">
+      <button class="btn" id="pConfirm" style="min-width:260px" disabled>パネルを選んでください</button>
+    </div>
+  </section>
+
+  <section id="view-player-result" hidden>
+    <div class="big-center">
+      <div class="waitbig" id="plResult">結果を待っています…</div>
+    </div>
+  </section>
+</div>
+
+<canvas id="confetti" hidden></canvas>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+"use strict";
+/* ======= FILL THIS WITH YOUR FIREBASE CONFIG ======= */
+const firebaseConfig = {
+  apiKey: "AIzaSyDcuOlPl12O_T8kMMOIS_jA5MfDOH8RsTY",
+  authDomain: "kanshasai-quiz-c358a.firebaseapp.com",
+  databaseURL: "https://kanshasai-quiz-c358a-default-rtdb.firebaseio.com",
+  projectId: "kanshasai-quiz-c358a",
+  storageBucket: "kanshasai-quiz-c358a.firebasestorage.app",
+  messagingSenderId: "837934672650",
+  appId: "1:837934672650:web:abbffd6b500f7eb51e28f3"
+};
+/* =================================================== */
+
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function clk(ms){const s=ms/1000,m=Math.floor(s/60),r=s-m*60;return m+":"+(r<10?"0":"")+r.toFixed(2);}
+const SAMPLE_IMGS=__IMGS_JSON__;
+
+/* BGM */
+const BGM_SRC="data:audio/mpeg;base64,__BGM_B64__";
+let bgm=null,muted=false;
+function bgmPlay(){try{if(!bgm){bgm=new Audio(BGM_SRC);bgm.volume=.7;}if(muted)return;bgm.currentTime=0;bgm.play().catch(()=>{});}catch(e){}}
+function bgmStop(){try{if(bgm)bgm.pause();}catch(e){}}
+$("#mute").onclick=()=>{muted=!muted;$("#mute").textContent=muted?"🔇":"🔊";if(muted)bgmStop();};
+
+function show(id){["view-config","view-host-home","view-host-lobby","view-host-q","view-host-results","view-join","view-player-lobby","view-player-q","view-player-result"].forEach(v=>{const e=document.getElementById(v);if(e)e.hidden=(v!==id);});}
+
+/* ---------- board rendering (shared) ---------- */
+function panelMarkup(c,i){
+  const body=c.img?`<div class="body"><img src="${c.img}" alt=""></div>`:`<div class="body"><span class="ph">画像なし</span></div>`;
+  return `${body}<div class="bar"><span class="no tnum">${i+1}</span><span class="nm">${esc(c.text)||("選択"+(i+1))}</span><span class="cnt tnum" hidden></span></div>`;
+}
+function boardHTML(q){
+  return `<div class="stagegrid">
+    <div class="qpanels">${q.choices.map((c,i)=>`<div class="panel" data-i="${i}">${panelMarkup(c,i)}</div>`).join("")}</div>
+    <div class="qcol"><div class="qcol-logo">ALL STAR<br>感謝祭</div><div class="qbadge">Q</div>
+      <div class="qvert"><span>${esc(q.q)}</span></div>
+      <div class="count"><div class="cnum tnum" data-cnum>${q.time||10}</div></div></div>
+  </div>
+  <div class="liveout"><span class="livecount" data-live><span class="dot"></span><span data-livetext></span></span><span class="resultline" data-rl hidden></span></div>`;
+}
+let cdRAF=0;
+function startCountdown(stageEl,lim,onZero){
+  cancelAnimationFrame(cdRAF);
+  const cn=stageEl.querySelector("[data-cnum]"),cc=stageEl.querySelector(".count");
+  const start=performance.now();let zero=false;
+  const tick=()=>{const el=(performance.now()-start)/1000,rem=Math.max(0,lim-el);
+    if(cn)cn.textContent=Math.ceil(rem);
+    if(cc)cc.classList.toggle("low",rem<=3&&rem>0);
+    if(rem<=0){if(!zero){zero=true;if(cn)cn.textContent="0";if(cc)cc.classList.remove("low");onZero&&onZero();}return;}
+    cdRAF=requestAnimationFrame(tick);};
+  cdRAF=requestAnimationFrame(tick);
+  return ()=>cancelAnimationFrame(cdRAF);
+}
+function applyReveal(stageEl,q,counts){
+  cancelAnimationFrame(cdRAF);
+  const cn=stageEl.querySelector("[data-cnum]");if(cn)cn.textContent="0";
+  stageEl.querySelectorAll(".panel").forEach(el=>{const i=+el.dataset.i,c=el.querySelector(".cnt");
+    if(c){c.hidden=false;c.textContent=(counts[i]||0)+"人";}
+    el.classList.remove("correct","wrong");el.classList.add(i===q.answer?"correct":"wrong");});
+  const live=stageEl.querySelector(".livecount");if(live)live.style.display="none";
+  const total=counts.reduce((a,b)=>a+b,0)||0;const rl=stageEl.querySelector("[data-rl]");
+  if(rl){rl.hidden=false;rl.innerHTML=`正解 <b>${q.answer+1}番</b>／${counts[q.answer]||0}人（${total?Math.round((counts[q.answer]||0)/total*100):0}%）`;}
+}
+
+/* ---------- confetti ---------- */
+let confRAF=0;
+function burst(){const cv=$("#confetti");cv.hidden=false;cv.width=innerWidth;cv.height=innerHeight;const ctx=cv.getContext("2d");
+  const cols=["#f6c73f","#ffe79a","#2f6fe0","#36d07a","#fff","#ff2d46","#ff3db0"],it=[];
+  for(let i=0;i<180;i++)it.push({x:innerWidth/2+(Math.random()-.5)*160,y:innerHeight*.3,vx:(Math.random()-.5)*12,vy:-7-Math.random()*9,g:.22+Math.random()*.12,s:5+Math.random()*7,c:cols[i%cols.length],rot:Math.random()*6,vr:(Math.random()-.5)*.4,life:0});
+  cancelAnimationFrame(confRAF);
+  const loop=()=>{ctx.clearRect(0,0,cv.width,cv.height);let al=false;it.forEach(p=>{p.vy+=p.g;p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;p.life++;if(p.y<cv.height+20)al=true;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=p.c;ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6);ctx.restore();});if(al&&it[0].life<260)confRAF=requestAnimationFrame(loop);else cv.hidden=true;};loop();}
+
+/* ---------- projector + keyboard ---------- */
+function setProjector(on){document.body.classList.toggle("projector",on);$("#projExit").hidden=!on;
+  try{if(on){const el=document.documentElement;if(el.requestFullscreen&&!document.fullscreenElement)el.requestFullscreen().catch(()=>{});}else if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(()=>{});}catch(e){}}
+["projBtn","projBtn2","projBtn3"].forEach(id=>{const b=document.getElementById(id);if(b)b.onclick=()=>setProjector(true);});
+$("#projExit").onclick=()=>setProjector(false);
+document.addEventListener("fullscreenchange",()=>{if(!document.fullscreenElement&&document.body.classList.contains("projector"))setProjector(false);});
+document.addEventListener("keydown",e=>{if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
+  if(e.key===" "||e.key==="Enter"||e.key==="ArrowRight"){for(const id of ["hReveal","hNext","hToResults","revealNext","revealStart","startQuiz"]){const b=document.getElementById(id);if(b&&!b.hidden&&!b.disabled&&b.offsetParent!==null){e.preventDefault();b.click();return;}}}
+  if(e.key==="Escape"&&document.body.classList.contains("projector"))setProjector(false);});
+
+/* ================= EDITOR (host authoring) ================= */
+const LSKEY="kanshasai_fb_v1";
+const SEED=[
+  {q:"日本で一番高い山は？",choices:["富士山","北岳","槍ヶ岳","穂高岳"],answer:0,imgs:true},
+  {q:"「光陰矢のごとし」の“光陰”が表すものは？",choices:["天気","月日・時間","方角","感情"],answer:1},
+  {q:"五輪マークの輪の数は？",choices:["4つ","5つ","6つ","7つ"],answer:1},
+];
+function defaultQuestions(){
+  return SEED.map(s=>{const q={type:"image",time:10,q:s.q,choices:s.choices.map(t=>({text:t,img:null})),answer:s.answer};
+    if(s.imgs&&SAMPLE_IMGS&&SAMPLE_IMGS.length===4)for(let i=0;i<4;i++)q.choices[i].img=SAMPLE_IMGS[i];return q;});
+}
+function loadStore(){try{const s=localStorage.getItem(LSKEY);if(s){const a=JSON.parse(s);if(Array.isArray(a)&&a.length)return a;}}catch(e){}return defaultQuestions();}
+function saveStore(){try{localStorage.setItem(LSKEY,JSON.stringify(questions));}catch(e){}}
+let questions=loadStore();
+function newQ(){return {type:"image",time:10,q:"",choices:[0,1,2,3].map(()=>({text:"",img:null})),answer:0};}
+function resizeImg(file,cb){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const max=420;let w=im.width,h=im.height;const sc=Math.min(1,max/Math.max(w,h));const c=document.createElement("canvas");c.width=Math.round(w*sc);c.height=Math.round(h*sc);c.getContext("2d").drawImage(im,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",.78));};im.src=r.result;};r.readAsDataURL(file);}
+function renderEditor(){const el=$("#admin-list");if(!el)return;
+  el.innerHTML=questions.map((q,qi)=>`
+   <div class="qed" data-qi="${qi}">
+     <div class="qed-top"><span class="qed-n">問 ${qi+1}</span>
+       <select class="ed-time" data-act="time">${[10,15,20,30,60].map(t=>`<option value="${t}" ${(q.time||10)===t?"selected":""}>${t}秒</option>`).join("")}</select>
+       <button class="ed-del" data-act="del" title="削除">🗑</button></div>
+     <input class="ed-in" data-act="q" placeholder="問題文（例：日本で一番高い山は？）" value="${esc(q.q)}">
+     <div class="ed-choices">${q.choices.map((c,ci)=>`
+       <div class="ed-ch ${q.answer===ci?"ans":""}" data-ci="${ci}"><span class="ed-no">${ci+1}</span>
+         <label class="ed-img">${c.img?`<img src="${c.img}">`:`＋画像`}<input type="file" accept="image/*" data-act="img" hidden></label>
+         <input class="ed-in ed-ct" data-act="choice" placeholder="選択肢${ci+1}（例：富士山）" value="${esc(c.text)}">
+         <button class="ed-ans ${q.answer===ci?"on":""}" data-act="ans">${q.answer===ci?"✓正解":"正解"}</button></div>`).join("")}</div>
+   </div>`).join("")+`<div class="ed-add"><button class="btn sm blue" data-add="1">＋ 問題を追加</button></div>`;
+}
+function wireEditor(){const host=$("#admin-list");
+  host.addEventListener("input",e=>{const t=e.target,a=t.dataset.act,card=t.closest(".qed");if(!card||!a)return;const qi=+card.dataset.qi;
+    if(a==="q")questions[qi].q=t.value;else if(a==="choice"){questions[qi].choices[+t.closest(".ed-ch").dataset.ci].text=t.value;}saveStore();});
+  host.addEventListener("change",e=>{const t=e.target,a=t.dataset.act,card=t.closest(".qed");if(!card||!a)return;const qi=+card.dataset.qi;
+    if(a==="time"){questions[qi].time=+t.value;saveStore();}else if(a==="img"){const ci=+t.closest(".ed-ch").dataset.ci;const f=t.files&&t.files[0];if(f)resizeImg(f,u=>{questions[qi].choices[ci].img=u;saveStore();renderEditor();});}});
+  host.addEventListener("click",e=>{const t=e.target.closest("[data-act],[data-add]");if(!t)return;
+    if(t.dataset.add){questions.push(newQ());saveStore();renderEditor();return;}
+    const card=t.closest(".qed");if(!card)return;const qi=+card.dataset.qi,a=t.dataset.act;
+    if(a==="del"){if(questions.length>1){questions.splice(qi,1);saveStore();renderEditor();}}
+    else if(a==="ans"){questions[qi].answer=+t.closest(".ed-ch").dataset.ci;saveStore();renderEditor();}});
+}
+
+/* ================= FIREBASE ================= */
+let db=null,auth=null,uid=null;
+let roomCode=new URLSearchParams(location.search).get("room");
+let isHost=!roomCode;
+let roomRef=null,stateRef=null,Q=[],lastPhase=null,lastQ=-1;
+
+function cfgOk(){return firebaseConfig.apiKey&&firebaseConfig.apiKey!=="PASTE_HERE"&&firebaseConfig.databaseURL;}
+
+function boot(){
+  if(!cfgOk()){show("view-config");return;}
+  firebase.initializeApp(firebaseConfig);auth=firebase.auth();db=firebase.database();
+  auth.signInAnonymously().catch(e=>{console.log("auth error",e);});
+  auth.onAuthStateChanged(u=>{if(!u)return;uid=u.uid;isHost?startHost():startPlayer();});
+}
+
+/* ---------- HOST ---------- */
+function gencode(){const s="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let c="";for(let i=0;i<4;i++)c+=s[Math.random()*s.length|0];return c;}
+function startHost(){renderEditor();show("view-host-home");}
+$("#createRoom").onclick=()=>{
+  const bad=questions.findIndex(q=>!(q.q&&q.q.trim()));
+  if(bad>=0){renderEditor();$("#admin-list").querySelectorAll(".qed")[bad].scrollIntoView({behavior:"smooth",block:"center"});return;}
+  roomCode=gencode();roomRef=db.ref("rooms/"+roomCode);
+  Q=JSON.parse(JSON.stringify(questions));
+  roomRef.set({host:uid,createdAt:firebase.database.ServerValue.TIMESTAMP,questions:Q,state:{phase:"lobby",qIndex:-1}}).then(openLobby);
+};
+function playerURL(){return location.origin+location.pathname+"?room="+roomCode;}
+function openLobby(){
+  show("view-host-lobby");
+  $("#roomCode").textContent=roomCode;$("#joinUrl").textContent=playerURL();
+  $("#qrbox").innerHTML="";new QRCode($("#qrbox"),{text:playerURL(),width:200,height:200,correctLevel:QRCode.CorrectLevel.M});
+  roomRef.child("players").on("value",s=>{const ps=s.val()||{};const names=Object.values(ps).map(p=>p.name);
+    $("#pcount").textContent=names.length;$("#players").innerHTML=names.map(n=>`<span class="pchip">${esc(n)}</span>`).join("");});
+}
+let hAnsRef=null,hCurQ=0;
+$("#startQuiz").onclick=()=>{hostStartQuestion(0);};
+function hostStartQuestion(i){
+  hCurQ=i;
+  show("view-host-q");
+  const q=Q[i];const st=$("#hStage");st.innerHTML=boardHTML(q);
+  $("#hReveal").hidden=false;$("#hNext").hidden=true;$("#hToResults").hidden=true;
+  roomRef.child("state").set({phase:"question",qIndex:i,time:q.time||10,at:firebase.database.ServerValue.TIMESTAMP});
+  bgmPlay();
+  startCountdown(st,q.time||10,()=>{const lt=st.querySelector("[data-livetext]");if(lt)lt.innerHTML="時間切れ — <b style='color:var(--gold-hi)'>「正解発表」</b>を押してください";});
+  if(hAnsRef)hAnsRef.off();
+  hAnsRef=roomRef.child("answers/"+i);
+  hAnsRef.on("value",s=>{const n=s.numChildren();const lt=st.querySelector("[data-livetext]");if(lt&&!/時間切れ/.test(lt.innerHTML))lt.textContent=n+" 人が回答";});
+}
+$("#hReveal").onclick=()=>{
+  const i=hCurQ,q=Q[i];
+  roomRef.child("answers/"+i).once("value",s=>{
+    const counts=[0,0,0,0];s.forEach(ch=>{const a=ch.val();if(a&&a.choice>=0&&a.choice<4)counts[a.choice]++;});
+    applyReveal($("#hStage"),q,counts);bgmStop();
+    roomRef.child("state").update({phase:"reveal"});
+    $("#hReveal").hidden=true;if(i<Q.length-1)$("#hNext").hidden=false;else $("#hToResults").hidden=false;
+  });
+};
+$("#hNext").onclick=()=>{hostStartQuestion(hCurQ+1);};
+$("#hToResults").onclick=()=>{hostResults();};
+
+function hostResults(){
+  Promise.all([roomRef.child("players").once("value"),roomRef.child("answers").once("value")]).then(([ps,ans])=>{
+    const players=ps.val()||{};const answers=ans.val()||{};
+    const agg={};Object.keys(players).forEach(u=>agg[u]={uid:u,name:players[u].name||"参加者",correct:0,ms:0});
+    Object.keys(answers).forEach(qi=>{const byU=answers[qi]||{};Object.keys(byU).forEach(u=>{if(!agg[u])agg[u]={uid:u,name:(players[u]&&players[u].name)||"参加者",correct:0,ms:0};const a=byU[u];if(a.correct)agg[u].correct++;agg[u].ms+=(a.ms||0);});});
+    ranked=Object.values(agg).sort((a,b)=>b.correct-a.correct||a.ms-b.ms);
+    const list=ranked.map((p,i)=>({rank:i+1,uid:p.uid,name:p.name,correct:p.correct,ms:p.ms}));
+    roomRef.child("results").set(list);
+    roomRef.child("state").update({phase:"results"});
+    show("view-host-results");setupResults();
+  });
+}
+
+/* results reveal (10 at a time) — host only */
+let ranked=[],paceMul=1.6,blocks=[],phase="idle",topN=3,autoT=0;
+function setupResults(){
+  blocks=[];for(let hi=ranked.length;hi>=11;hi-=10){const lo=Math.max(11,hi-9),arr=[];for(let r=lo;r<=hi;r++)arr.push(r);blocks.push(arr);}
+  phase="idle";topN=3;if(autoT)clearTimeout(autoT);
+  $("#ranklist").innerHTML="";$("#rrange").textContent="";$("#winbar").textContent="";
+  $("#revealStart").hidden=false;$("#revealNext").hidden=true;
+}
+function rowEl(r){return $(`.rrow[data-r="${r}"]`);}
+function rowHTML(r){const p=ranked[r-1];return `<div class="rrow" data-r="${r}"><span class="rr tnum">${r}</span><span class="rn">${esc(p.name)}</span><span class="rq tnum">${p.correct}問</span><span class="rtime tnum">${clk(p.ms)}</span></div>`;}
+function maskHTML(r){return `<div class="rrow on masked" data-r="${r}"><span class="rr tnum">${r}</span><span class="rn">？ ？ ？</span><span class="rq"></span><span class="rtime"></span></div>`;}
+function holdMs(){return 2600*paceMul;}
+function renderPage(arr){$("#rrange").textContent=`${arr[0]}〜${arr[arr.length-1]}位`;$("#ranklist").innerHTML=arr.map(rowHTML).join("");
+  const rows=$$("#ranklist .rrow"),n=rows.length,st=Math.min(170,holdMs()/12);
+  rows.forEach((el,i)=>setTimeout(()=>el.classList.add("on","flash"),(n-1-i)*st));
+  rows.forEach((el,i)=>setTimeout(()=>el.classList.remove("flash"),(n-1-i)*st+420));}
+$("#revealStart").onclick=()=>{$("#revealStart").hidden=true;$("#revealNext").hidden=false;$("#revealNext").textContent="次の10人へ ▶";
+  if(blocks.length){phase="pages";pageIdx=0;renderPage(blocks[0]);scheduleAuto();}else startTop10();};
+let pageIdx=0;
+function scheduleAuto(){if(autoT)clearTimeout(autoT);autoT=setTimeout(nextPage,holdMs()+700);}
+function nextPage(){if(phase!=="pages")return;if(autoT)clearTimeout(autoT);if(pageIdx<blocks.length-1){pageIdx++;renderPage(blocks[pageIdx]);scheduleAuto();}else startTop10();}
+function startTop10(){phase="top";topN=Math.min(3,ranked.length);if(autoT)clearTimeout(autoT);$("#rrange").textContent="トップ10";
+  const top=Math.min(10,ranked.length);let html="";for(let r=1;r<=top;r++)html+=(r<=3?maskHTML(r):rowHTML(r));$("#ranklist").innerHTML=html;
+  for(let r=top;r>=4;r--){const el=rowEl(r);if(el)setTimeout(()=>el.classList.add("on"),(top-r)*120);}
+  $("#revealNext").textContent="第"+topN+"位を発表";}
+$("#revealNext").onclick=()=>{if(phase==="pages"){nextPage();return;}if(phase!=="top")return;
+  const btn=$("#revealNext");btn.disabled=true;const r=topN,p=ranked[r-1],win=r===1,el=rowEl(r);
+  setTimeout(()=>{if(el){el.classList.remove("masked");el.classList.add("on");el.querySelector(".rn").textContent=p.name;
+    const q=el.querySelector(".rq");q.textContent=p.correct+"問";q.className="rq tnum";const t=el.querySelector(".rtime");t.textContent=clk(p.ms);t.className="rtime tnum";
+    setTimeout(()=>el.classList.add(win?"win":"top"),130);}
+    if(win&&p){$("#winbar").textContent="🏆 優勝 "+p.name+"（"+p.correct+"問 / "+clk(p.ms)+"）";burst();}
+    topN--;btn.disabled=false;if(topN>=1)btn.textContent="第"+topN+"位を発表";else btn.hidden=true;},700);};
+$$("#pace .pacebtn").forEach(b=>b.onclick=()=>{paceMul=parseFloat(b.dataset.p);$$("#pace .pacebtn").forEach(x=>x.setAttribute("aria-pressed",x===b));});
+
+/* ---------- PLAYER ---------- */
+let myName=null,qLocalStart=0,pPick=-1,answeredQ=-1;
+function startPlayer(){
+  roomRef=db.ref("rooms/"+roomCode);
+  roomRef.child("questions").once("value").then(s=>{Q=s.val()||[];
+    roomRef.once("value").then(r=>{ if(!r.exists()){$("#joinErr").textContent="ルームが見つかりません";show("view-join");return;}
+      show("view-join"); });
+  });
+}
+$("#joinBtn").onclick=()=>{
+  myName=($("#joinName").value||"").trim();if(!myName){$("#joinErr").textContent="名前を入れてください";return;}
+  roomRef.child("players/"+uid).set({name:myName,at:firebase.database.ServerValue.TIMESTAMP}).then(()=>{
+    $("#plWelcome").textContent="ようこそ "+myName+" さん";
+    roomRef.child("state").on("value",s=>playerOnState(s.val()||{}));
+  });
+};
+function playerOnState(st){
+  const phase=st.phase;
+  if(phase==="lobby"){show("view-player-lobby");return;}
+  if(phase==="question"){
+    if(answeredQ!==st.qIndex||lastPhase!=="question"){ // new question
+      renderPlayerQ(st.qIndex);
+    }
+  } else if(phase==="reveal"){ playerReveal(st.qIndex); }
+  else if(phase==="results"){ playerResult(); }
+  lastPhase=phase;
+}
+function renderPlayerQ(i){
+  const q=Q[i];if(!q)return;answeredQ=-1;pPick=-1;
+  show("view-player-q");const st=$("#pStage");st.innerHTML=boardHTML(q);
+  qLocalStart=performance.now();
+  $("#pConfirm").disabled=true;$("#pConfirm").textContent="パネルを選んでください";$("#pConfirm").hidden=false;
+  bgmPlay();
+  startCountdown(st,q.time||10,()=>{lockAnswer(i,q,true);});
+  st.querySelectorAll(".panel").forEach(b=>b.onclick=()=>{if(answeredQ===i)return;pPick=+b.dataset.i;st.querySelectorAll(".panel").forEach(x=>x.classList.remove("picked"));b.classList.add("picked");$("#pConfirm").disabled=false;$("#pConfirm").textContent=(pPick+1)+"番で確定する";});
+  $("#pConfirm").onclick=()=>{if(pPick<0||answeredQ===i)return;submitAnswer(i,q);};
+  curPlayerQ=i;curPlayerQObj=q;
+}
+let curPlayerQ=-1,curPlayerQObj=null;
+function submitAnswer(i,q){
+  const ms=Math.min((q.time||10)*1000,Math.round(performance.now()-qLocalStart));
+  const correct=pPick===q.answer;answeredQ=i;
+  roomRef.child("answers/"+i+"/"+uid).set({choice:pPick,ms,correct,at:firebase.database.ServerValue.TIMESTAMP});
+  bgmStop();
+  const st=$("#pStage");st.querySelectorAll(".panel").forEach(x=>{if(+x.dataset.i!==pPick)x.style.opacity=".5";});
+  $("#pConfirm").disabled=true;$("#pConfirm").textContent="回答しました（"+(ms/1000).toFixed(1)+"秒）";
+}
+function lockAnswer(i,q,timeup){ if(answeredQ===i)return; if(timeup){answeredQ=i;$("#pConfirm").disabled=true;$("#pConfirm").textContent="時間切れ";} }
+function playerReveal(i){
+  const q=Q[i]||curPlayerQObj;if(!q)return;
+  show("view-player-q");const st=$("#pStage");
+  if(!st.querySelector(".panel")){st.innerHTML=boardHTML(q);}
+  roomRef.child("answers/"+i).once("value",s=>{const counts=[0,0,0,0];let my=null;s.forEach(ch=>{const a=ch.val();if(a&&a.choice>=0&&a.choice<4)counts[a.choice]++;if(ch.key===uid)my=a;});
+    applyReveal(st,q,counts);
+    $("#pConfirm").hidden=false;$("#pConfirm").disabled=true;
+    $("#pConfirm").textContent= my? (my.correct?("正解！ "+(my.ms/1000).toFixed(1)+"秒"):"残念…"):"未回答";
+    $("#pConfirm").style.background= my&&my.correct? "linear-gradient(180deg,#ff6ec0,#d4178a)":"";
+  });
+  bgmStop();
+}
+function playerResult(){
+  roomRef.child("results").once("value").then(s=>{const list=s.val()||[];const me=list.find(x=>x.uid===uid);
+    show("view-player-result");
+    if(me){$("#plResult").innerHTML=`あなたは <span style="color:var(--gold-hi)">第${me.rank}位</span><br><span style="font-size:.6em;color:var(--muted)">正解 ${me.correct}問 / 合計 ${clk(me.ms)}秒</span>`;if(me.rank===1)burst();}
+    else $("#plResult").textContent="結果発表中…（進行役の画面をご覧ください）";
+  });
+}
+
+/* ---------- start ---------- */
+wireEditor();
+boot();
+window.addEventListener("resize",()=>{const cv=$("#confetti");if(!cv.hidden){cv.width=innerWidth;cv.height=innerHeight;}});
+</script>
+</body>
+</html>
