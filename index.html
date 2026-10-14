@@ -292,8 +292,13 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
 @keyframes correctBlink{
   from{box-shadow:0 0 0 7px #ff3db0,0 0 54px rgba(255,61,176,1);border-color:#ff3db0}
   to{box-shadow:0 0 0 2px rgba(246,199,63,.4),0 0 6px rgba(0,0,0,.1);border-color:var(--gold)}}
-/* 質問文：箱サイズは統一。短い時は自動で大きく＆中央寄せ（余白感を消す） */
+/* 盤面の箱サイズを全問で統一（質問文の長さで変わらないよう固定高さ＝行を膨張させない） */
+.stagegrid{height:clamp(340px,58vw,460px);min-height:0;grid-template-rows:minmax(0,1fr)}
+.qpanels{min-height:0}
+@media(max-width:560px){.stagegrid{height:auto;grid-template-rows:auto}}
+/* 質問文：箱に合わせて自動フィット・中央寄せ・常に1列（2列禁止） */
 .qvert{align-items:center;text-align:center}
+.qvert span{white-space:nowrap}
 /* 選択肢はプロジェクター＆後方席向けに大きめ（本物準拠） */
 .panel .bar{min-height:52px;padding:7px 13px;gap:11px}
 .panel .no{flex:0 0 32px;height:32px;font-size:17px}
@@ -494,7 +499,7 @@ function panelMarkup(c,i){
   return `${body}<div class="bar"><span class="no tnum">${i+1}</span><span class="nm">${esc(c.text)||("選択"+(i+1))}</span><span class="cnt tnum" hidden></span></div>`;
 }
 function boardHTML(q){
-  return `${q.practice?'<div class="pracbadge">れんしゅう問題（得点に入りません）</div>':''}<div class="stagegrid">
+  return `${q.practice?'<div class="pracbadge">練習問題（得点に入りません）</div>':''}<div class="stagegrid">
     <div class="qpanels">${q.choices.map((c,i)=>`<div class="panel" data-i="${i}">${panelMarkup(c,i)}</div>`).join("")}</div>
     <div class="qcol"><div class="qcol-logo">ALL STAR<br>感謝祭</div><div class="qbadge">Q</div>
       <div class="qvert"><span>${esc(q.q)}</span></div>
@@ -505,11 +510,11 @@ function boardHTML(q){
 function fitQ(stageEl){
   const span=stageEl&&stageEl.querySelector(".qvert span");if(!span)return;
   const box=span.parentElement;
-  let lo=12,hi=44,best=12;
-  for(let i=0;i<8;i++){const mid=(lo+hi)/2;span.style.fontSize=mid+"px";
-    const fit=span.scrollWidth<=box.clientWidth+1&&span.scrollHeight<=box.clientHeight+1;
-    if(fit){best=mid;lo=mid;}else hi=mid;}
-  span.style.fontSize=Math.floor(best)+"px";
+  const vertical=(getComputedStyle(span).writingMode||"").indexOf("vertical")===0;
+  const len=(span.textContent||"").length||1;
+  let f=vertical ? (box.clientHeight-14)/(len*1.02) : (box.clientWidth-14)/(len*0.96);
+  f=Math.max(13,Math.min(40,Math.floor(f)));
+  span.style.fontSize=f+"px";
 }
 let cdRAF=0;
 function startCountdown(stageEl,lim,onZero){
@@ -565,7 +570,7 @@ const SEED=[
 function defaultQuestions(){
   const base=SEED.map(s=>{const q={practice:false,type:"image",time:10,q:s.q,choices:s.choices.map(t=>({text:t,img:null})),answer:s.answer};
     if(s.imgs&&SAMPLE_IMGS&&SAMPLE_IMGS.length===4)for(let i=0;i<4;i++)q.choices[i].img=SAMPLE_IMGS[i];return q;});
-  const prac={practice:true,type:"image",time:10,q:"【練習】タップしてみよう！いちばん好きなのは？",choices:[{text:"ネコ",img:null},{text:"イヌ",img:null},{text:"ごはん",img:null},{text:"ねる",img:null}],answer:0};
+  const prac={practice:true,type:"image",time:10,q:"【練習】好きなのはどれ？",choices:[{text:"ネコ",img:null},{text:"イヌ",img:null},{text:"ごはん",img:null},{text:"ねる",img:null}],answer:0};
   return [prac,...base];
 }
 function loadStore(){try{const s=localStorage.getItem(LSKEY);if(s){const a=JSON.parse(s);if(Array.isArray(a)&&a.length)return a;}}catch(e){}return defaultQuestions();}
@@ -576,7 +581,7 @@ function resizeImg(file,cb){const r=new FileReader();r.onload=()=>{const im=new 
 function renderEditor(){const el=$("#admin-list");if(!el)return;
   el.innerHTML=questions.map((q,qi)=>`
    <div class="qed" data-qi="${qi}">
-     <div class="qed-top"><span class="qed-n">${q.practice?"れんしゅう":"問 "+(qi+1)}</span>
+     <div class="qed-top"><span class="qed-n">${q.practice?"練習問題":"問 "+(qi+1)}</span>
        <button class="ed-prac ${q.practice?"on":""}" data-act="prac">${q.practice?"● 練習（採点なし）":"練習にする"}</button>
        <select class="ed-time" data-act="time">${[10,15,20,30,60].map(t=>`<option value="${t}" ${(q.time||10)===t?"selected":""}>${t}秒</option>`).join("")}</select>
        <button class="ed-del" data-act="del" title="削除">🗑</button></div>
