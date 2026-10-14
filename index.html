@@ -420,7 +420,7 @@ body.projector .projhint{display:block}
 </head>
 <body>
 <button class="btn ghost sm projexit" id="projExit" hidden>× 通常表示に戻す</button>
-<div class="projhint" id="projhint">▶ スペースキーで進む ／ Esc で戻る</div>
+<div class="projhint" id="projhint">▶ スペース／→ 進む ・ ← 1つ戻る ・ Esc 全画面終了</div>
 <div class="wrap">
   <div class="topbar">
     <div class="brand"><span class="eyebrow">ALL STAR</span><span class="logo">感謝祭<span class="star">★</span>クイズ</span></div>
@@ -666,11 +666,31 @@ $("#projExit").onclick=()=>setProjector(false);
 document.addEventListener("fullscreenchange",()=>{if(!document.fullscreenElement&&document.body.classList.contains("projector"))setProjector(false);});
 document.addEventListener("keydown",e=>{if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
   if(e.key===" "||e.key==="Enter"||e.key==="ArrowRight"){
+    if(isHost&&!document.getElementById("view-end").hidden){e.preventDefault();goHome();return;} // エンディングでSpace→ホーム
     const secs=["view-host-lobby","view-host-q","view-host-results"];
     const sid=secs.find(id=>{const el=document.getElementById(id);return el&&!el.hidden;});
     if(sid){const btn=[...document.querySelectorAll("#"+sid+" .adv")].find(b=>!b.hidden&&!b.disabled);if(btn){e.preventDefault();btn.click();}}
   }
+  if((e.key==="ArrowLeft"||e.key==="Backspace")&&isHost){e.preventDefault();goBack();} // 1つ戻る（連打しすぎ対策／練習まで戻れる）
   if(e.key==="Escape"&&document.body.classList.contains("projector"))setProjector(false);});
+// ===== 戻る／ホーム（進行の手戻り） =====
+let navHist=[];
+function goHome(){try{if(autoT)clearTimeout(autoT);}catch(_){}try{resultStop();}catch(_){}try{bgmStop();}catch(_){}navHist=[];if(hAnsRef){hAnsRef.off();hAnsRef=null;}renderEditor();show("view-host-home");}
+function goBack(){
+  const d=navHist.pop();
+  if(!d){ if(!document.getElementById("view-host-lobby").hidden||!document.getElementById("view-end").hidden)goHome(); return; }
+  if(d.t==="lobby"){bgmStop();if(hAnsRef){hAnsRef.off();hAnsRef=null;}show("view-host-lobby");if(roomRef)roomRef.child("state").set({phase:"lobby",qIndex:-1});}
+  else if(d.t==="question"){hostStartQuestion(d.i);}
+  else if(d.t==="reveal"){restoreReveal(d.i);}
+  else if(d.t==="results"){if(autoT)clearTimeout(autoT);resultStop();hostResults();}
+}
+function restoreReveal(i){
+  hCurQ=i;bgmStop();show("view-host-q");
+  const q=Q[i];const st=$("#hStage");st.innerHTML=boardHTML(q);fitQ(st);
+  roomRef.child("answers/"+i).once("value",s=>{const c=[0,0,0,0];s.forEach(ch=>{const a=ch.val();if(a&&a.choice>=0&&a.choice<4)c[a.choice]++;});
+    applyReveal(st,q,c);roomRef.child("state").update({phase:"reveal",qIndex:i});
+    $("#hReveal").hidden=true;$("#hNext").hidden=(i>=Q.length-1);$("#hToResults").hidden=(i<Q.length-1);});
+}
 
 /* ================= EDITOR (host authoring) ================= */
 const LSKEY="kanshasai_fb_v2";
@@ -753,7 +773,7 @@ function openLobby(){
     $("#pcount").textContent=names.length;$("#players").innerHTML=names.map(n=>`<span class="pchip">${esc(n)}</span>`).join("");});
 }
 let hAnsRef=null,hCurQ=0;
-$("#startQuiz").onclick=()=>{hostStartQuestion(0);};
+$("#startQuiz").onclick=()=>{navHist.push({t:"lobby"});hostStartQuestion(0);};
 function hostStartQuestion(i){
   hCurQ=i;
   show("view-host-q");
@@ -767,6 +787,7 @@ function hostStartQuestion(i){
   hAnsRef.on("value",s=>{const n=s.numChildren();const lt=st.querySelector("[data-livetext]");if(lt&&!/時間切れ/.test(lt.innerHTML))lt.textContent=n+" 人が回答";});
 }
 $("#hReveal").onclick=()=>{
+  navHist.push({t:"question",i:hCurQ});
   const i=hCurQ,q=Q[i];
   roomRef.child("answers/"+i).once("value",s=>{
     const counts=[0,0,0,0];s.forEach(ch=>{const a=ch.val();if(a&&a.choice>=0&&a.choice<4)counts[a.choice]++;});
@@ -775,8 +796,8 @@ $("#hReveal").onclick=()=>{
     $("#hReveal").hidden=true;if(i<Q.length-1)$("#hNext").hidden=false;else $("#hToResults").hidden=false;
   });
 };
-$("#hNext").onclick=()=>{hostStartQuestion(hCurQ+1);};
-$("#hToResults").onclick=()=>{hostResults();};
+$("#hNext").onclick=()=>{navHist.push({t:"reveal",i:hCurQ});hostStartQuestion(hCurQ+1);};
+$("#hToResults").onclick=()=>{navHist.push({t:"reveal",i:hCurQ});hostResults();};
 
 function hostResults(){
   Promise.all([roomRef.child("players").once("value"),roomRef.child("answers").once("value")]).then(([ps,ans])=>{
@@ -821,7 +842,7 @@ $("#revealNext").onclick=()=>{
     topN--;btn.disabled=false;if(topN>=1)btn.textContent="第"+topN+"位を発表";else{btn.hidden=true;$("#endBtn").hidden=false;}
   },800);
 };
-$("#endBtn").onclick=()=>{resultStop();if(roomRef)roomRef.child("state").update({phase:"ending"});$("#endMsg").innerHTML='ご参加ありがとうございました<span class="endnote">上位3名の方は、前へお越しください</span>';show("view-end");};
+$("#endBtn").onclick=()=>{navHist.push({t:"results"});resultStop();if(roomRef)roomRef.child("state").update({phase:"ending"});$("#endMsg").innerHTML='ご参加ありがとうございました<span class="endnote">上位3名の方は、前へお越しください</span>';show("view-end");};
 $$("#pace .pacebtn").forEach(b=>b.onclick=()=>{paceMul=parseFloat(b.dataset.p);$$("#pace .pacebtn").forEach(x=>x.setAttribute("aria-pressed",x===b));});
 
 /* ---------- PLAYER ---------- */
