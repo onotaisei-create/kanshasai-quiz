@@ -65,6 +65,10 @@ __CSS__
 .rbanner{z-index:3}
 .ranklist{height:58vh;min-height:300px;overflow:hidden}
 @media (prefers-reduced-motion:reduce){.rankstage::before,.rankstage::after,.panel.correct{animation:none}}
+/* 練習問題 */
+.pracbadge{position:absolute;top:10px;left:12px;z-index:5;background:linear-gradient(180deg,#ffe79a,#e2a010);color:#3a2606;font-weight:900;font-size:clamp(12px,2.1vw,17px);padding:5px 14px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.ed-prac{border:1px solid var(--line);background:rgba(3,16,52,.45);color:var(--muted);border-radius:8px;padding:6px 11px;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap}
+.ed-prac.on{background:linear-gradient(180deg,#8fe08f,#2e9f3e);color:#06220c;border-color:transparent}
 </style>
 </head>
 <body>
@@ -232,7 +236,7 @@ function panelMarkup(c,i){
   return `${body}<div class="bar"><span class="no tnum">${i+1}</span><span class="nm">${esc(c.text)||("選択"+(i+1))}</span><span class="cnt tnum" hidden></span></div>`;
 }
 function boardHTML(q){
-  return `<div class="stagegrid">
+  return `${q.practice?'<div class="pracbadge">れんしゅう問題（得点に入りません）</div>':''}<div class="stagegrid">
     <div class="qpanels">${q.choices.map((c,i)=>`<div class="panel" data-i="${i}">${panelMarkup(c,i)}</div>`).join("")}</div>
     <div class="qcol"><div class="qcol-logo">ALL STAR<br>感謝祭</div><div class="qbadge">Q</div>
       <div class="qvert"><span>${esc(q.q)}</span></div>
@@ -294,25 +298,28 @@ document.addEventListener("keydown",e=>{if(e.target&&/INPUT|TEXTAREA|SELECT/.tes
   if(e.key==="Escape"&&document.body.classList.contains("projector"))setProjector(false);});
 
 /* ================= EDITOR (host authoring) ================= */
-const LSKEY="kanshasai_fb_v1";
+const LSKEY="kanshasai_fb_v2";
 const SEED=[
   {q:"日本で一番高い山は？",choices:["富士山","北岳","槍ヶ岳","穂高岳"],answer:0,imgs:true},
   {q:"「光陰矢のごとし」の“光陰”が表すものは？",choices:["天気","月日・時間","方角","感情"],answer:1},
   {q:"五輪マークの輪の数は？",choices:["4つ","5つ","6つ","7つ"],answer:1},
 ];
 function defaultQuestions(){
-  return SEED.map(s=>{const q={type:"image",time:10,q:s.q,choices:s.choices.map(t=>({text:t,img:null})),answer:s.answer};
+  const base=SEED.map(s=>{const q={practice:false,type:"image",time:10,q:s.q,choices:s.choices.map(t=>({text:t,img:null})),answer:s.answer};
     if(s.imgs&&SAMPLE_IMGS&&SAMPLE_IMGS.length===4)for(let i=0;i<4;i++)q.choices[i].img=SAMPLE_IMGS[i];return q;});
+  const prac={practice:true,type:"image",time:10,q:"【練習】タップしてみよう！いちばん好きなのは？",choices:[{text:"ネコ",img:null},{text:"イヌ",img:null},{text:"ごはん",img:null},{text:"ねる",img:null}],answer:0};
+  return [prac,...base];
 }
 function loadStore(){try{const s=localStorage.getItem(LSKEY);if(s){const a=JSON.parse(s);if(Array.isArray(a)&&a.length)return a;}}catch(e){}return defaultQuestions();}
 function saveStore(){try{localStorage.setItem(LSKEY,JSON.stringify(questions));}catch(e){}}
 let questions=loadStore();
-function newQ(){return {type:"image",time:10,q:"",choices:[0,1,2,3].map(()=>({text:"",img:null})),answer:0};}
+function newQ(){return {practice:false,type:"image",time:10,q:"",choices:[0,1,2,3].map(()=>({text:"",img:null})),answer:0};}
 function resizeImg(file,cb){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const max=420;let w=im.width,h=im.height;const sc=Math.min(1,max/Math.max(w,h));const c=document.createElement("canvas");c.width=Math.round(w*sc);c.height=Math.round(h*sc);c.getContext("2d").drawImage(im,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",.78));};im.src=r.result;};r.readAsDataURL(file);}
 function renderEditor(){const el=$("#admin-list");if(!el)return;
   el.innerHTML=questions.map((q,qi)=>`
    <div class="qed" data-qi="${qi}">
-     <div class="qed-top"><span class="qed-n">問 ${qi+1}</span>
+     <div class="qed-top"><span class="qed-n">${q.practice?"れんしゅう":"問 "+(qi+1)}</span>
+       <button class="ed-prac ${q.practice?"on":""}" data-act="prac">${q.practice?"● 練習（採点なし）":"練習にする"}</button>
        <select class="ed-time" data-act="time">${[10,15,20,30,60].map(t=>`<option value="${t}" ${(q.time||10)===t?"selected":""}>${t}秒</option>`).join("")}</select>
        <button class="ed-del" data-act="del" title="削除">🗑</button></div>
      <input class="ed-in" data-act="q" placeholder="問題文（例：日本で一番高い山は？）" value="${esc(q.q)}">
@@ -332,6 +339,7 @@ function wireEditor(){const host=$("#admin-list");
     if(t.dataset.add){questions.push(newQ());saveStore();renderEditor();return;}
     const card=t.closest(".qed");if(!card)return;const qi=+card.dataset.qi,a=t.dataset.act;
     if(a==="del"){if(questions.length>1){questions.splice(qi,1);saveStore();renderEditor();}}
+    else if(a==="prac"){questions[qi].practice=!questions[qi].practice;saveStore();renderEditor();}
     else if(a==="ans"){questions[qi].answer=+t.closest(".ed-ch").dataset.ci;saveStore();renderEditor();}});
 }
 
@@ -398,7 +406,7 @@ function hostResults(){
   Promise.all([roomRef.child("players").once("value"),roomRef.child("answers").once("value")]).then(([ps,ans])=>{
     const players=ps.val()||{};const answers=ans.val()||{};
     const agg={};Object.keys(players).forEach(u=>agg[u]={uid:u,name:players[u].name||"参加者",correct:0,ms:0});
-    Object.keys(answers).forEach(qi=>{const byU=answers[qi]||{};Object.keys(byU).forEach(u=>{if(!agg[u])agg[u]={uid:u,name:(players[u]&&players[u].name)||"参加者",correct:0,ms:0};const a=byU[u];if(a.correct)agg[u].correct++;agg[u].ms+=(a.ms||0);});});
+    Object.keys(answers).forEach(qi=>{if(Q[qi]&&Q[qi].practice)return;const byU=answers[qi]||{};Object.keys(byU).forEach(u=>{if(!agg[u])agg[u]={uid:u,name:(players[u]&&players[u].name)||"参加者",correct:0,ms:0};const a=byU[u];if(a.correct)agg[u].correct++;agg[u].ms+=(a.ms||0);});});
     ranked=Object.values(agg).sort((a,b)=>b.correct-a.correct||a.ms-b.ms);
     const list=ranked.map((p,i)=>({rank:i+1,uid:p.uid,name:p.name,correct:p.correct,ms:p.ms}));
     roomRef.child("results").set(list);
