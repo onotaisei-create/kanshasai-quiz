@@ -1,3 +1,5 @@
 node_modules/
 *.png
 test.html
+dist/
+site.zip
