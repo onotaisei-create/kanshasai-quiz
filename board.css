@@ -235,13 +235,14 @@ body.projector #view-host-results .rbanner span{font-size:clamp(50px,6vw,98px)}
   .wrap{min-height:100vh;display:flex;flex-direction:column}
   #view-host-lobby,#view-host-q{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
   #view-host-lobby .lobby-card{flex:1 1 auto}
-  #view-host-q .stage{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
-  #view-host-q .stagegrid{flex:1 1 auto;min-height:240px;height:auto}
+  /* 盤面は画面を超えないよう高さを明示（flexのmin-heightは上限にならないため見切れる） */
+  #view-host-q .stagegrid{height:calc(100vh - 210px)}
   /* 結果は左右に余白（会場から見やすく） */
   #view-host-results{padding-inline:clamp(14px,4vw,90px)}
   /* 結果のランキングは行が縮まないので高さを明示（溢れ防止＋スクロール発表を維持） */
   #view-host-results .ranklist{height:calc(100vh - 345px)}
 }
+body.projector #view-host-q .stagegrid{height:88vh}
 body.projector #view-host-results .ranklist{height:calc(100vh - 135px)}
 canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
 
