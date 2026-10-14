@@ -92,8 +92,9 @@ body.projector .projhint{display:block}
   .stagegrid{height:auto;grid-template-rows:auto;grid-template-columns:1fr;gap:8px}
   .qpanels{height:auto;grid-template-rows:auto auto;gap:9px;min-width:0}
   .panel{min-width:0}
-  .qvert{min-width:0}
-  .qvert span{white-space:normal}
+  .qcol{min-width:0}
+  .qvert{min-width:0;overflow:hidden}
+  .qvert span{display:block;overflow:hidden;text-overflow:ellipsis}
   .panel .bar{min-height:42px;padding:7px 11px;gap:9px}
   .panel .no{flex:0 0 28px;height:28px;font-size:14px}
   .panel .nm{font-size:16px}
@@ -295,9 +296,11 @@ function fitQ(stageEl){
   const span=stageEl&&stageEl.querySelector(".qvert span");if(!span)return;
   const box=span.parentElement;
   const vertical=(getComputedStyle(span).writingMode||"").indexOf("vertical")===0;
-  const len=(span.textContent||"").length||1;
-  let f=vertical ? (box.clientHeight-14)/(len*1.02) : (box.clientWidth-14)/(len*0.96);
-  f=Math.max(13,Math.min(40,Math.floor(f)));
+  // 実測で縮める：縦=列の高さ、横=1行で横幅に収まるまでフォントを下げる
+  let f=40;span.style.fontSize=f+"px";
+  // 横=spanの内容幅(=paddingを除いた実幅)に対して1行で収まるまで縮める。縦=列の高さに収める
+  const over=()=> vertical ? span.scrollHeight>box.clientHeight : span.scrollWidth>span.clientWidth;
+  let g=0;while(f>9&&over()&&g++<60){f-=1;span.style.fontSize=f+"px";}
   span.style.fontSize=f+"px";
 }
 let cdRAF=0;
