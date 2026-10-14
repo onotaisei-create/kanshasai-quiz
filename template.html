@@ -378,6 +378,7 @@ function setProjector(on){document.body.classList.toggle("projector",on);$("#pro
 $("#projExit").onclick=()=>setProjector(false);
 document.addEventListener("fullscreenchange",()=>{if(!document.fullscreenElement&&document.body.classList.contains("projector"))setProjector(false);});
 document.addEventListener("keydown",e=>{if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
+  if(e.repeat)return; // 長押しのリピートで複数回進む/戻るのを防止（戻るが一気にロビーまで行く不具合対策）
   if(e.key===" "||e.key==="Enter"||e.key==="ArrowRight"){
     if(isHost&&!document.getElementById("view-end").hidden){e.preventDefault();goHome();return;} // エンディングでSpace→ホーム
     const secs=["view-host-lobby","view-host-q","view-host-results"];
