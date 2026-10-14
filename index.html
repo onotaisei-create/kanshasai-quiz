@@ -767,7 +767,7 @@ function startHost(){renderEditor();show("view-host-home");}
 $("#createRoom").onclick=()=>{
   const bad=questions.findIndex(q=>!(q.q&&q.q.trim()));
   if(bad>=0){renderEditor();$("#admin-list").querySelectorAll(".qed")[bad].scrollIntoView({behavior:"smooth",block:"center"});return;}
-  roomCode=gencode();roomRef=db.ref("rooms/"+roomCode);
+  roomCode="TAIYUI";roomRef=db.ref("rooms/"+roomCode);  // 固定コード（QR/URLを毎回同じに。作成時に中身はリセット）
   Q=JSON.parse(JSON.stringify(questions));
   roomRef.set({host:uid,createdAt:firebase.database.ServerValue.TIMESTAMP,questions:Q,state:{phase:"lobby",qIndex:-1}}).then(openLobby);
 };
