@@ -25,12 +25,26 @@ __CSS__
 .cfg ol{line-height:1.8}
 .hostbadge{font-size:11px;font-weight:700;color:#06224e;background:linear-gradient(180deg,var(--gold-hi),var(--gold));padding:3px 10px;border-radius:999px;margin-left:8px}
 .waitbig{font-family:var(--ds);font-weight:900;font-size:clamp(22px,6vw,34px);color:var(--gold-hi)}
-/* 正解発表：外れを暗くせず正解を目立たせる（本家準拠） */
+/* 正解発表：外れは暗くせず、正解の枠を点滅させて目立たせる（本家＝BGMに合わせて点滅） */
 .panel{position:relative}
 .panel.wrong{opacity:1}
-.panel.correct{border-color:var(--gold);box-shadow:0 0 0 4px var(--gold-hi),0 0 34px rgba(255,61,176,.7);animation:winpop .45s ease-out}
-@keyframes winpop{0%{transform:scale(.97)}60%{transform:scale(1.03)}100%{transform:scale(1)}}
-.panel.correct::after{content:"正解";position:absolute;top:7px;right:7px;z-index:4;background:linear-gradient(180deg,#ff5cc0,#d4178a);color:#fff;font-weight:900;font-size:13px;padding:3px 12px;border-radius:7px;box-shadow:0 2px 8px rgba(0,0,0,.45)}
+.panel.correct{border-color:var(--gold);box-shadow:0 0 0 5px var(--gold-hi),0 0 30px rgba(255,61,176,.6)}
+/* 本家＝正解枠がマゼンタ↔消灯で点滅（効果音に合わせて約0.24s刻み・計約2.6s） */
+.panel.correct.blink{animation:correctBlink .24s ease-in-out 11 alternate}
+@keyframes correctBlink{
+  from{box-shadow:0 0 0 7px #ff3db0,0 0 54px rgba(255,61,176,1);border-color:#ff3db0}
+  to{box-shadow:0 0 0 2px rgba(246,199,63,.4),0 0 6px rgba(0,0,0,.1);border-color:var(--gold)}}
+/* 質問文：箱サイズは統一。短い時は自動で大きく＆中央寄せ（余白感を消す） */
+.qvert{align-items:center;text-align:center}
+/* 選択肢はプロジェクター＆後方席向けに大きめ（本物準拠） */
+.panel .bar{min-height:52px;padding:7px 13px;gap:11px}
+.panel .no{flex:0 0 32px;height:32px;font-size:17px}
+.panel .nm{font-size:clamp(17px,2.7vw,30px);font-weight:900}
+.panel .cnt{font-size:clamp(16px,2.2vw,25px)}
+.pb-panels .panel .bar{min-height:36px;padding:5px 9px;gap:8px}
+.pb-panels .panel .no{flex:0 0 24px;height:24px;font-size:13px}
+.pb-panels .panel .nm{font-size:15px}
+.pb-panels .panel .cnt{font-size:14px}
 /* 結果発表：DxL2HO2O42Y 風の動く青背景 */
 .rankstage{position:relative;overflow:hidden;background:
    radial-gradient(circle at 18% 28%, rgba(255,255,255,.12),transparent 6%),
@@ -226,6 +240,15 @@ function boardHTML(q){
   </div>
   <div class="liveout"><span class="livecount" data-live><span class="dot"></span><span data-livetext></span></span><span class="resultline" data-rl hidden></span></div>`;
 }
+function fitQ(stageEl){
+  const span=stageEl&&stageEl.querySelector(".qvert span");if(!span)return;
+  const box=span.parentElement;
+  let lo=12,hi=44,best=12;
+  for(let i=0;i<8;i++){const mid=(lo+hi)/2;span.style.fontSize=mid+"px";
+    const fit=span.scrollWidth<=box.clientWidth+1&&span.scrollHeight<=box.clientHeight+1;
+    if(fit){best=mid;lo=mid;}else hi=mid;}
+  span.style.fontSize=Math.floor(best)+"px";
+}
 let cdRAF=0;
 function startCountdown(stageEl,lim,onZero){
   cancelAnimationFrame(cdRAF);
@@ -244,7 +267,9 @@ function applyReveal(stageEl,q,counts){
   const cn=stageEl.querySelector("[data-cnum]");if(cn)cn.textContent="0";
   stageEl.querySelectorAll(".panel").forEach(el=>{const i=+el.dataset.i,c=el.querySelector(".cnt");
     if(c){c.hidden=false;c.textContent=(counts[i]||0)+"人";}
-    el.classList.remove("correct","wrong");el.classList.add(i===q.answer?"correct":"wrong");});
+    el.classList.remove("correct","wrong","blink");
+    if(i===q.answer){el.classList.add("correct","blink");setTimeout(()=>el.classList.remove("blink"),2600);}
+    else el.classList.add("wrong");});
   const live=stageEl.querySelector(".livecount");if(live)live.style.display="none";
   const total=counts.reduce((a,b)=>a+b,0)||0;const rl=stageEl.querySelector("[data-rl]");
   if(rl){rl.hidden=false;rl.innerHTML=`正解 <b>${q.answer+1}番</b>／${counts[q.answer]||0}人（${total?Math.round((counts[q.answer]||0)/total*100):0}%）`;}
@@ -348,7 +373,7 @@ $("#startQuiz").onclick=()=>{hostStartQuestion(0);};
 function hostStartQuestion(i){
   hCurQ=i;
   show("view-host-q");
-  const q=Q[i];const st=$("#hStage");st.innerHTML=boardHTML(q);
+  const q=Q[i];const st=$("#hStage");st.innerHTML=boardHTML(q);fitQ(st);
   $("#hReveal").hidden=false;$("#hNext").hidden=true;$("#hToResults").hidden=true;
   roomRef.child("state").set({phase:"question",qIndex:i,time:q.time||10,at:firebase.database.ServerValue.TIMESTAMP});
   bgmPlay();
@@ -443,7 +468,7 @@ function playerOnState(st){
 }
 function renderPlayerQ(i){
   const q=Q[i];if(!q)return;answeredQ=-1;pPick=-1;
-  show("view-player-q");const st=$("#pStage");st.innerHTML=boardHTML(q);
+  show("view-player-q");const st=$("#pStage");st.innerHTML=boardHTML(q);fitQ(st);
   qLocalStart=performance.now();
   $("#pConfirm").disabled=true;$("#pConfirm").textContent="パネルを選んでください";$("#pConfirm").hidden=false;
   bgmPlay();
@@ -465,7 +490,7 @@ function lockAnswer(i,q,timeup){ if(answeredQ===i)return; if(timeup){answeredQ=i
 function playerReveal(i){
   const q=Q[i]||curPlayerQObj;if(!q)return;
   show("view-player-q");const st=$("#pStage");
-  if(!st.querySelector(".panel")){st.innerHTML=boardHTML(q);}
+  if(!st.querySelector(".panel")){st.innerHTML=boardHTML(q);fitQ(st);}
   roomRef.child("answers/"+i).once("value",s=>{const counts=[0,0,0,0];let my=null;s.forEach(ch=>{const a=ch.val();if(a&&a.choice>=0&&a.choice<4)counts[a.choice]++;if(ch.key===uid)my=a;});
     applyReveal(st,q,counts);
     $("#pConfirm").hidden=false;$("#pConfirm").disabled=true;
@@ -481,7 +506,8 @@ function playerResult(){
 /* ---------- start ---------- */
 wireEditor();
 boot();
-window.addEventListener("resize",()=>{const cv=$("#confetti");if(!cv.hidden){cv.width=innerWidth;cv.height=innerHeight;}});
+window.addEventListener("resize",()=>{const cv=$("#confetti");if(!cv.hidden){cv.width=innerWidth;cv.height=innerHeight;}
+  if(!$("#view-host-q").hidden)fitQ($("#hStage"));if(!$("#view-player-q").hidden)fitQ($("#pStage"));});
 </script>
 </body>
 </html>
