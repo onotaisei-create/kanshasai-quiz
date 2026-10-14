@@ -35,9 +35,8 @@ __CSS__
   from{box-shadow:0 0 0 7px #ff3db0,0 0 54px rgba(255,61,176,1);border-color:#ff3db0}
   to{box-shadow:0 0 0 2px rgba(246,199,63,.4),0 0 6px rgba(0,0,0,.1);border-color:var(--gold)}}
 /* 盤面の箱サイズを全問で統一（質問文の長さで変わらないよう固定高さ＝行を膨張させない） */
-.stagegrid{height:clamp(340px,58vw,460px);min-height:0;grid-template-rows:minmax(0,1fr)}
+.stagegrid{height:clamp(300px,58vw,460px);min-height:0;grid-template-rows:minmax(0,1fr)}
 .qpanels{min-height:0}
-@media(max-width:560px){.stagegrid{height:auto;grid-template-rows:auto}}
 /* 質問文：箱に合わせて自動フィット・中央寄せ・常に1列（2列禁止） */
 .qvert{align-items:center;text-align:center}
 .qvert span{white-space:nowrap}
@@ -74,10 +73,31 @@ __CSS__
 .pracbadge{position:absolute;top:10px;left:12px;z-index:5;background:linear-gradient(180deg,#ffe79a,#e2a010);color:#3a2606;font-weight:900;font-size:clamp(12px,2.1vw,17px);padding:5px 14px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
 .ed-prac{border:1px solid var(--line);background:rgba(3,16,52,.45);color:var(--muted);border-radius:8px;padding:6px 11px;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap}
 .ed-prac.on{background:linear-gradient(180deg,#8fe08f,#2e9f3e);color:#06220c;border-color:transparent}
+/* エンディング画面 */
+.endwrap{min-height:74vh;display:grid;place-content:center;gap:12px;text-align:center;padding:24px 16px}
+.endmark{color:var(--gold-hi);letter-spacing:.5em;font-size:20px}
+.endthanks{font-family:var(--ds);font-weight:900;font-size:clamp(38px,10vw,74px);letter-spacing:.03em;line-height:1;
+  background:linear-gradient(180deg,#fff6d8,var(--gold-hi) 45%,var(--gold-d));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 0 #7a5410)}
+.endmsg{font-family:var(--ds);font-weight:700;font-size:clamp(17px,3.8vw,26px);color:#fff;line-height:1.7}
+.endmsg .endnote{display:block;margin-top:6px;font-size:.72em;color:var(--gold-hi)}
+.endnames{margin-top:18px;font-family:var(--ds);font-weight:700;color:var(--gold-hi);letter-spacing:.26em;font-size:clamp(13px,2.8vw,18px)}
+/* プロジェクター時の進行ヒント */
+.projhint{display:none;position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:80;background:rgba(0,0,0,.55);color:#fff;font-weight:700;font-size:13px;padding:7px 18px;border-radius:999px;border:1px solid var(--line)}
+body.projector .projhint{display:block}
+/* モバイル：固定箱サイズを解除して横向き・全幅・大きめに（デスクトップ/投影は縦のまま） */
+@media(max-width:560px){
+  .stagegrid{height:auto;grid-template-rows:auto;grid-template-columns:1fr;gap:8px}
+  .qpanels{height:auto;grid-template-rows:auto auto;gap:9px}
+  .panel .bar{min-height:42px;padding:7px 11px;gap:9px}
+  .panel .no{flex:0 0 28px;height:28px;font-size:14px}
+  .panel .nm{font-size:16px}
+  .panel .cnt{font-size:15px}
+}
 </style>
 </head>
 <body>
 <button class="btn ghost sm projexit" id="projExit" hidden>× 通常表示に戻す</button>
+<div class="projhint" id="projhint">▶ スペースキーで進む ／ Esc で戻る</div>
 <div class="wrap">
   <div class="topbar">
     <div class="brand"><span class="eyebrow">ALL STAR</span><span class="logo">感謝祭<span class="star">★</span>クイズ</span></div>
@@ -119,8 +139,8 @@ __CSS__
       <div class="joinurl" id="joinUrl"></div>
       <div style="margin-top:10px">参加者 <b id="pcount">0</b> 人</div>
       <div class="players" id="players"></div>
-      <div class="row center" style="justify-content:center;margin-top:8px">
-        <button class="btn red" id="startQuiz">クイズを開始</button>
+      <div class="row center hostctrl" style="justify-content:center;margin-top:8px">
+        <button class="btn red adv" id="startQuiz">クイズを開始</button>
         <button class="btn ghost sm" id="projBtn">⛶ プロジェクター表示</button>
       </div>
     </div>
@@ -128,10 +148,10 @@ __CSS__
 
   <section id="view-host-q" hidden>
     <div class="stage" id="hStage"></div>
-    <div class="row mt center" style="justify-content:center">
-      <button class="btn" id="hReveal">解答締め切り・正解発表</button>
-      <button class="btn blue" id="hNext" hidden>次の問題へ</button>
-      <button class="btn red" id="hToResults" hidden>個人成績ランキングへ</button>
+    <div class="row mt center hostctrl" style="justify-content:center">
+      <button class="btn adv" id="hReveal" hidden>解答締め切り・正解発表</button>
+      <button class="btn blue adv" id="hNext" hidden>次の問題へ</button>
+      <button class="btn red adv" id="hToResults" hidden>個人成績ランキングへ</button>
       <button class="btn ghost sm" id="projBtn2">⛶ プロジェクター表示</button>
     </div>
   </section>
@@ -143,15 +163,15 @@ __CSS__
       <div class="ranklist" id="ranklist"></div>
       <div class="winbar" id="winbar"></div>
     </div>
-    <div class="pace mt" id="pace">発表ペース：
+    <div class="pace mt hostctrl" id="pace">発表ペース：
       <button class="pacebtn" data-p="0.6">はやめ</button>
       <button class="pacebtn" data-p="1">ふつう</button>
       <button class="pacebtn" data-p="1.6" aria-pressed="true">ゆっくり</button>
     </div>
-    <div class="row center" style="justify-content:center;margin-top:8px">
-      <button class="btn red" id="revealStart">発表スタート（最下位から）</button>
-      <button class="btn" id="revealNext" hidden>第3位を発表</button>
-      <button class="btn red" id="endBtn" hidden>エンディングへ ▶</button>
+    <div class="row center hostctrl" style="justify-content:center;margin-top:8px">
+      <button class="btn red adv" id="revealStart" hidden>発表スタート（最下位から）</button>
+      <button class="btn adv" id="revealNext" hidden>第3位を発表</button>
+      <button class="btn red adv" id="endBtn" hidden>エンディングへ ▶</button>
       <button class="btn ghost sm" id="projBtn3">⛶ プロジェクター表示</button>
     </div>
   </section>
@@ -189,9 +209,11 @@ __CSS__
   </section>
 
   <section id="view-end" hidden>
-    <div class="big-center">
-      <div style="font-size:48px">🎉</div>
-      <div class="waitbig" id="endMsg"></div>
+    <div class="endwrap">
+      <div class="endmark">★ ★ ★</div>
+      <div class="endthanks">Thank You!</div>
+      <div class="endmsg" id="endMsg"></div>
+      <div class="endnames">Taisei &amp; Yui</div>
     </div>
   </section>
 </div>
@@ -226,10 +248,11 @@ const BGM_SRC="data:audio/mpeg;base64,__BGM_B64__";
 const REVEAL_SRC="data:audio/mpeg;base64,__REVEAL_B64__";
 const RESULT_SRC="data:audio/mpeg;base64,__RESULT_B64__";
 let bgm=null,sfx=null,resbgm=null,muted=false;
-function bgmPlay(){try{if(!bgm){bgm=new Audio(BGM_SRC);bgm.volume=.7;}if(muted)return;bgm.currentTime=0;bgm.play().catch(()=>{});}catch(e){}}
+/* 音はホスト(PC)だけ。参加者スマホでは鳴らさない */
+function bgmPlay(){if(!isHost)return;try{if(!bgm){bgm=new Audio(BGM_SRC);bgm.volume=.7;}if(muted)return;bgm.currentTime=0;bgm.play().catch(()=>{});}catch(e){}}
 function bgmStop(){try{if(bgm)bgm.pause();}catch(e){}}
-function sfxReveal(){try{if(!sfx)sfx=new Audio(REVEAL_SRC);if(muted)return;sfx.currentTime=0;sfx.play().catch(()=>{});}catch(e){}}
-function resultPlay(){try{if(!resbgm){resbgm=new Audio(RESULT_SRC);resbgm.loop=true;resbgm.volume=.6;}if(muted)return;resbgm.currentTime=0;resbgm.play().catch(()=>{});}catch(e){}}
+function sfxReveal(){if(!isHost)return;try{if(!sfx)sfx=new Audio(REVEAL_SRC);if(muted)return;sfx.currentTime=0;sfx.play().catch(()=>{});}catch(e){}}
+function resultPlay(){if(!isHost)return;try{if(!resbgm){resbgm=new Audio(RESULT_SRC);resbgm.loop=true;resbgm.volume=.6;}if(muted)return;resbgm.currentTime=0;resbgm.play().catch(()=>{});}catch(e){}}
 function resultStop(){try{if(resbgm)resbgm.pause();}catch(e){}}
 $("#mute").onclick=()=>{muted=!muted;$("#mute").textContent=muted?"🔇":"🔊";if(muted){bgmStop();resultStop();try{if(sfx)sfx.pause();}catch(e){}}};
 
@@ -299,7 +322,11 @@ function setProjector(on){document.body.classList.toggle("projector",on);$("#pro
 $("#projExit").onclick=()=>setProjector(false);
 document.addEventListener("fullscreenchange",()=>{if(!document.fullscreenElement&&document.body.classList.contains("projector"))setProjector(false);});
 document.addEventListener("keydown",e=>{if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
-  if(e.key===" "||e.key==="Enter"||e.key==="ArrowRight"){for(const id of ["hReveal","hNext","hToResults","revealNext","revealStart","startQuiz"]){const b=document.getElementById(id);if(b&&!b.hidden&&!b.disabled&&b.offsetParent!==null){e.preventDefault();b.click();return;}}}
+  if(e.key===" "||e.key==="Enter"||e.key==="ArrowRight"){
+    const secs=["view-host-lobby","view-host-q","view-host-results"];
+    const sid=secs.find(id=>{const el=document.getElementById(id);return el&&!el.hidden;});
+    if(sid){const btn=[...document.querySelectorAll("#"+sid+" .adv")].find(b=>!b.hidden&&!b.disabled);if(btn){e.preventDefault();btn.click();}}
+  }
   if(e.key==="Escape"&&document.body.classList.contains("projector"))setProjector(false);});
 
 /* ================= EDITOR (host authoring) ================= */
@@ -448,12 +475,13 @@ $("#revealNext").onclick=()=>{
     topN--;btn.disabled=false;if(topN>=1)btn.textContent="第"+topN+"位を発表";else{btn.hidden=true;$("#endBtn").hidden=false;}
   },800);
 };
-$("#endBtn").onclick=()=>{resultStop();if(roomRef)roomRef.child("state").update({phase:"ending"});$("#endMsg").innerHTML="ご参加ありがとうございました！<br><span style='font-size:.6em;color:var(--gold-hi)'>🏆 上位3名の方は前へお越しください</span>";show("view-end");};
+$("#endBtn").onclick=()=>{resultStop();if(roomRef)roomRef.child("state").update({phase:"ending"});$("#endMsg").innerHTML='ご参加ありがとうございました<span class="endnote">上位3名の方は、前へお越しください</span>';show("view-end");};
 $$("#pace .pacebtn").forEach(b=>b.onclick=()=>{paceMul=parseFloat(b.dataset.p);$$("#pace .pacebtn").forEach(x=>x.setAttribute("aria-pressed",x===b));});
 
 /* ---------- PLAYER ---------- */
 let myName=null,qLocalStart=0,pPick=-1,answeredQ=-1;
 function startPlayer(){
+  $("#mute").hidden=true;
   roomRef=db.ref("rooms/"+roomCode);
   roomRef.child("questions").once("value").then(s=>{Q=s.val()||[];
     roomRef.once("value").then(r=>{ if(!r.exists()){$("#joinErr").textContent="ルームが見つかりません";show("view-join");return;}
@@ -476,7 +504,7 @@ function playerOnState(st){
     }
   } else if(phase==="reveal"){ playerReveal(st.qIndex); }
   else if(phase==="results"){ playerResult(); }
-  else if(phase==="ending"){ $("#endMsg").innerHTML="ご参加ありがとうございました！🎉"; show("view-end"); }
+  else if(phase==="ending"){ $("#endMsg").innerHTML="ご参加ありがとうございました"; show("view-end"); }
   lastPhase=phase;
 }
 function renderPlayerQ(i){
