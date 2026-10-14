@@ -321,8 +321,8 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
    radial-gradient(1.6px 1.6px at 48% 40%, rgba(255,232,130,.95),transparent 60%),
    radial-gradient(1.6px 1.6px at 66% 64%, rgba(255,232,130,.8),transparent 60%);animation:rfloat 11s ease-in-out infinite alternate}
 @keyframes rfloat{to{transform:translateY(-16px)}}
-.rankstage>*{position:relative;z-index:1}
-.rbanner{z-index:3}
+.rankstage>.rhead,.rankstage>.ranklist,.rankstage>.winbar{position:relative;z-index:1}
+.rankstage>.rbanner{position:absolute;z-index:3}
 .ranklist{height:58vh;min-height:300px;overflow:hidden}
 @media (prefers-reduced-motion:reduce){.rankstage::before,.rankstage::after,.panel.correct{animation:none}}
 /* 練習問題 */
@@ -342,11 +342,14 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
 body.projector .projhint{display:block}
 /* テスト用スマホ枠 */
 .testframe{display:flex;justify-content:center}
-.testframe iframe{width:390px;height:810px;max-width:100%;border:11px solid #0a0a0a;border-radius:36px;background:#06205e;box-shadow:0 22px 64px rgba(0,0,0,.55)}
+.testframe iframe{box-sizing:content-box;width:390px;height:810px;max-width:calc(100% - 22px);border:11px solid #0a0a0a;border-radius:36px;background:#06205e;box-shadow:0 22px 64px rgba(0,0,0,.55)}
 /* モバイル：固定箱サイズを解除して横向き・全幅・大きめに（デスクトップ/投影は縦のまま） */
 @media(max-width:560px){
   .stagegrid{height:auto;grid-template-rows:auto;grid-template-columns:1fr;gap:8px}
-  .qpanels{height:auto;grid-template-rows:auto auto;gap:9px}
+  .qpanels{height:auto;grid-template-rows:auto auto;gap:9px;min-width:0}
+  .panel{min-width:0}
+  .qvert{min-width:0}
+  .qvert span{white-space:normal}
   .panel .bar{min-height:42px;padding:7px 11px;gap:9px}
   .panel .no{flex:0 0 28px;height:28px;font-size:14px}
   .panel .nm{font-size:16px}
