@@ -127,17 +127,19 @@ button{font-family:inherit}
    radial-gradient(circle at 75% 60%, rgba(255,255,255,.08),transparent 7%),
    radial-gradient(circle at 55% 18%, rgba(255,255,255,.07),transparent 6%),
    linear-gradient(180deg,#2360d8,#0a2f86 70%,#06205e)}
-.rbanner{position:absolute;top:0;right:0;height:100%;width:62px;z-index:3;display:grid;place-items:center;
-  background:linear-gradient(180deg,#b9801a,#8a5e10);border-left:2px solid var(--gold-hi);box-shadow:-4px 0 14px rgba(0,0,0,.3)}
-.rbanner span{writing-mode:vertical-rl;font-family:var(--ds);font-weight:900;font-size:19px;letter-spacing:.14em;
-  background:linear-gradient(180deg,#fff6d8,var(--gold-hi),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+.rbanner{position:absolute;top:0;right:0;height:100%;width:clamp(56px,5vw,74px);z-index:3;display:grid;place-items:center;
+  background:linear-gradient(90deg,#7a5410 0%,#c9972a 22%,#ffeaa6 48%,#f0cf6a 56%,#b9801a 80%,#6e4a0e 100%);
+  border-radius:14px 0 0 14px;
+  box-shadow:-6px 0 18px rgba(0,0,0,.4),inset 1px 0 0 rgba(255,245,200,.7),inset 0 0 0 2px rgba(120,80,10,.35)}
+.rbanner span{writing-mode:vertical-rl;font-family:var(--ds);font-weight:900;font-size:clamp(20px,2vw,26px);letter-spacing:.14em;
+  color:#4a3208;text-shadow:0 1px 0 rgba(255,245,200,.6),0 -1px 1px rgba(90,60,10,.5)}
 .rhead{position:relative;z-index:2;padding:12px 74px 6px 18px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 .rhead .rt{font-family:var(--ds);font-weight:900;font-size:clamp(17px,3.6vw,22px);color:#fff}
 .rhead .rs{font-size:12px;color:var(--muted)}
 .rhead .rrange{margin-left:auto;font-family:var(--num);font-weight:700;font-size:clamp(16px,3.6vw,22px);color:var(--gold-hi)}
 .ranklist{position:relative;z-index:1;min-height:300px;overflow:hidden;margin:0 74px 0 10px;padding:4px 8px 8px}
 .rrow{display:grid;grid-template-columns:48px 1fr auto auto;gap:10px;align-items:center;padding:6px 12px;margin:3px 0;border-radius:9px;
-  background:linear-gradient(180deg,rgba(58,59,176,.5),rgba(35,34,116,.55));border:1px solid rgba(255,255,255,.08);
+  background:linear-gradient(180deg,rgba(28,38,108,.74),rgba(12,20,64,.8));border:1px solid rgba(255,255,255,.1);
   opacity:0;transform:translateY(8px);transition:opacity .35s,transform .35s,background .3s,box-shadow .3s}
 .rrow.on{opacity:1;transform:none}
 .rrow .rr{font-family:var(--num);font-weight:700;font-size:18px;color:#dfe9ff;text-align:center}
@@ -220,6 +222,8 @@ body.projector #view-host-lobby .lobby-body{gap:clamp(44px,6vw,150px)}
 /* 会場から見やすいよう左右に余白（QR・ランキングが端に寄りすぎない）。盤面は全幅のまま */
 body.projector #view-host-lobby .lobby-card{padding-inline:clamp(44px,7vw,170px)}
 body.projector #view-host-results{padding-inline:clamp(30px,6vw,150px)}
+body.projector #view-host-results .rbanner{width:clamp(66px,5.5vw,92px)}
+body.projector #view-host-results .rbanner span{font-size:clamp(26px,2.4vw,38px)}
 
 /* PC(横幅561px以上)はホスト投影画面を常に画面の高さいっぱいに（通常表示でも） */
 @media(min-width:561px){

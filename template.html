@@ -80,6 +80,9 @@ __CSS__
 @keyframes rfloat{to{transform:translateY(-16px)}}
 .rankstage>.rhead,.rankstage>.ranklist,.rankstage>.winbar{position:relative;z-index:1}
 .rankstage>.rbanner{position:absolute;z-index:3}
+/* 本家DxL2HO2O42Yの背景動画（進行役PCのみ読込）。読込時はCSSキラキラをオフ */
+.rankbg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none}
+.rankstage.hasvideo::before,.rankstage.hasvideo::after{display:none}
 .ranklist{height:58vh;min-height:300px;overflow:hidden}
 @media (prefers-reduced-motion:reduce){.rankstage::before,.rankstage::after,.panel.correct{animation:none}}
 /* 練習問題 */
@@ -203,6 +206,7 @@ body.projector .projhint{display:block}
 
   <section id="view-host-results" hidden>
     <div class="rankstage">
+      <video class="rankbg" id="rankbg" loop muted playsinline preload="none"></video>
       <div class="rbanner"><span>個人成績ランキング</span></div>
       <div class="rhead"><div class="rt">個人成績ランキング</div><div class="rs">正解数が多い順／同数は合計解答タイムが短い順</div><span class="rrange" id="rrange"></span></div>
       <div class="ranklist" id="ranklist"></div>
@@ -504,6 +508,8 @@ function setupResults(){
   $("#ranklist").innerHTML=ranked.map((p,i)=>rowHTML(i+1)).join("");
   $("#rrange").textContent="";$("#winbar").textContent="";
   $("#revealStart").hidden=false;$("#revealNext").hidden=true;$("#endBtn").hidden=true;
+  // 本家の結果背景動画を進行役PCだけ読み込んで再生（参加者は読み込まない）
+  const bg=$("#rankbg");if(bg){if(!bg.getAttribute("src"))bg.setAttribute("src","resbg.mp4");bg.currentTime=0;bg.play().catch(()=>{});const rs=bg.closest(".rankstage");if(rs)rs.classList.add("hasvideo");}
 }
 function scrollToRank(r){const list=$("#ranklist"),el=rowEl(r);if(!el)return;const top=el.offsetTop-list.clientHeight/2+el.clientHeight/2;list.scrollTo({top:Math.max(0,top),behavior:"smooth"});}
 function stepDelay(){const b=rp>20?480:(rp>8?720:1000);return b*paceMul;}
