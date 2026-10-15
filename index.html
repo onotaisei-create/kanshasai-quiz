@@ -162,7 +162,7 @@ button{font-family:inherit}
   opacity:0;transform:translateY(8px);transition:opacity .35s,transform .35s,background .3s,box-shadow .3s}
 .rrow.on{opacity:1;transform:none}
 .rrow .rr{font-family:var(--num);font-weight:700;font-size:clamp(18px,2.4vh,26px);color:#fff;text-align:center;text-shadow:0 2px 2px rgba(0,28,90,.7)}
-.rrow .rn{font-weight:800;font-size:clamp(16px,2.1vh,22px);color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 2px 2px rgba(0,28,90,.7)}
+.rrow .rn{font-weight:800;font-size:clamp(16px,2.1vh,22px);color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 1px rgba(0,14,46,.95),0 0 3px rgba(0,14,46,.85),0 2px 4px rgba(0,14,46,.6)}
 .rrow .rq{font-family:var(--num);font-weight:800;font-size:clamp(13px,1.8vh,18px);color:#2a2000;background:linear-gradient(180deg,#fff08a,#ffe03a 45%,#f5be0e);padding:3px 12px;border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 1px 2px rgba(0,0,0,.35)}
 .rrow .rtime{font-family:var(--num);font-size:clamp(16px,2.1vh,22px);color:#fff;text-shadow:0 2px 2px rgba(0,28,90,.7)}
 .rrow.flash{background:linear-gradient(180deg,#eef4ff,#cfe0ff);box-shadow:0 0 22px rgba(255,255,255,.5)}
@@ -668,7 +668,8 @@ function setProjector(on){document.body.classList.toggle("projector",on);$("#pro
 ["backQ","backR"].forEach(id=>{const b=document.getElementById(id);if(b)b.onclick=()=>goBack();});
 {const _bh=document.getElementById("backHome");if(_bh)_bh.onclick=()=>goHome();}
 $("#projExit").onclick=()=>setProjector(false);
-document.addEventListener("fullscreenchange",()=>{if(!document.fullscreenElement&&document.body.classList.contains("projector"))setProjector(false);});
+let lastNav=0;
+document.addEventListener("fullscreenchange",()=>{if(Date.now()-lastNav<600)return;if(!document.fullscreenElement&&document.body.classList.contains("projector"))setProjector(false);});
 document.addEventListener("keydown",e=>{if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
   if(e.repeat)return; // 長押しのリピートで複数回進む/戻るのを防止（戻るが一気にロビーまで行く不具合対策）
   if(e.key===" "||e.key==="Enter"||e.key==="ArrowRight"){
@@ -681,9 +682,12 @@ document.addEventListener("keydown",e=>{if(e.target&&/INPUT|TEXTAREA|SELECT/.tes
   if(e.key==="Escape"&&document.body.classList.contains("projector"))setProjector(false);});
 // ===== 戻る／ホーム（進行の手戻り） =====
 let navHist=[],testing=false;
-function goHome(){if(testing){location.reload();return;}try{if(autoT)clearTimeout(autoT);}catch(_){}try{resultStop();}catch(_){}try{bgmStop();}catch(_){}navHist=[];if(hAnsRef){hAnsRef.off();hAnsRef=null;}renderEditor();show("view-host-home");}
+function goHome(){if(testing){location.reload();return;}lastNav=Date.now();try{if(autoT)clearTimeout(autoT);}catch(_){}try{resultStop();}catch(_){}try{bgmStop();}catch(_){}navHist=[];if(hAnsRef){hAnsRef.off();hAnsRef=null;}renderEditor();show("view-host-home");}
 function goBack(){
   if(testing){location.reload();return;}
+  lastNav=Date.now();
+  if(autoT){clearTimeout(autoT);autoT=0;} // 発表の自動タイマー等を必ず止める（戻った後に勝手に進んでロビーまで行くのを防止）
+  try{if(typeof cdRAF!=='undefined'&&cdRAF)cancelAnimationFrame(cdRAF);}catch(_){}
   const d=navHist.pop();
   if(!d){ if(!document.getElementById("view-host-lobby").hidden||!document.getElementById("view-end").hidden)goHome(); return; }
   if(d.t==="lobby"){bgmStop();if(hAnsRef){hAnsRef.off();hAnsRef=null;}show("view-host-lobby");if(roomRef)roomRef.child("state").set({phase:"lobby",qIndex:-1});}

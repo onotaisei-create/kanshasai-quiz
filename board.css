@@ -149,7 +149,7 @@ button{font-family:inherit}
   opacity:0;transform:translateY(8px);transition:opacity .35s,transform .35s,background .3s,box-shadow .3s}
 .rrow.on{opacity:1;transform:none}
 .rrow .rr{font-family:var(--num);font-weight:700;font-size:clamp(18px,2.4vh,26px);color:#fff;text-align:center;text-shadow:0 2px 2px rgba(0,28,90,.7)}
-.rrow .rn{font-weight:800;font-size:clamp(16px,2.1vh,22px);color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 2px 2px rgba(0,28,90,.7)}
+.rrow .rn{font-weight:800;font-size:clamp(16px,2.1vh,22px);color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 1px rgba(0,14,46,.95),0 0 3px rgba(0,14,46,.85),0 2px 4px rgba(0,14,46,.6)}
 .rrow .rq{font-family:var(--num);font-weight:800;font-size:clamp(13px,1.8vh,18px);color:#2a2000;background:linear-gradient(180deg,#fff08a,#ffe03a 45%,#f5be0e);padding:3px 12px;border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 1px 2px rgba(0,0,0,.35)}
 .rrow .rtime{font-family:var(--num);font-size:clamp(16px,2.1vh,22px);color:#fff;text-shadow:0 2px 2px rgba(0,28,90,.7)}
 .rrow.flash{background:linear-gradient(180deg,#eef4ff,#cfe0ff);box-shadow:0 0 22px rgba(255,255,255,.5)}
