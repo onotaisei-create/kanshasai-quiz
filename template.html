@@ -377,7 +377,8 @@ function setProjector(on){document.body.classList.toggle("projector",on);$("#pro
 {const _bh=document.getElementById("backHome");if(_bh)_bh.onclick=()=>goHome();}
 $("#projExit").onclick=()=>setProjector(false);
 let lastNav=0;
-document.addEventListener("fullscreenchange",()=>{if(Date.now()-lastNav<600)return;if(!document.fullscreenElement&&document.body.classList.contains("projector"))setProjector(false);});
+// フルスクリーンが外れてもプロジェクター表示(レイアウト)は維持する。解除は「通常表示に戻す」ボタンかEscのみ。
+// （以前は fullscreenchange で自動解除しており、戻る操作等で勝手にプロジェクターが外れていた）
 document.addEventListener("keydown",e=>{if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
   if(e.repeat)return; // 長押しのリピートで複数回進む/戻るのを防止（戻るが一気にロビーまで行く不具合対策）
   if(e.key===" "||e.key==="Enter"||e.key==="ArrowRight"){
@@ -391,11 +392,19 @@ document.addEventListener("keydown",e=>{if(e.target&&/INPUT|TEXTAREA|SELECT/.tes
 // ===== 戻る／ホーム（進行の手戻り） =====
 let navHist=[],testing=false;
 function goHome(){if(testing){location.reload();return;}lastNav=Date.now();try{if(autoT)clearTimeout(autoT);}catch(_){}try{resultStop();}catch(_){}try{bgmStop();}catch(_){}navHist=[];if(hAnsRef){hAnsRef.off();hAnsRef=null;}renderEditor();show("view-host-home");}
+function testBack(){
+  try{if(typeof testRAF!=='undefined'&&testRAF)cancelAnimationFrame(testRAF);}catch(_){}
+  if(!document.getElementById("view-host-results").hidden){testLoadQ(questions.length-1);return;} // 結果→最後の問題
+  const isReveal=!!document.querySelector("#hStage .panel.correct");
+  if(isReveal){testLoadQ(testIdx);return;}          // 正解発表→その問題の出題へ
+  if(typeof testIdx==="number"&&testIdx>0){testLoadQ(testIdx-1);return;} // 出題→前の問題
+  location.reload(); // 最初まで戻ったらテスト終了
+}
 function goBack(){
-  if(testing){location.reload();return;}
   lastNav=Date.now();
   if(autoT){clearTimeout(autoT);autoT=0;} // 発表の自動タイマー等を必ず止める（戻った後に勝手に進んでロビーまで行くのを防止）
   try{if(typeof cdRAF!=='undefined'&&cdRAF)cancelAnimationFrame(cdRAF);}catch(_){}
+  if(testing){testBack();return;} // テストモードはリロードせず1問ずつ戻る（プロジェクター維持）
   const d=navHist.pop();
   if(!d){ if(!document.getElementById("view-host-lobby").hidden||!document.getElementById("view-end").hidden)goHome(); return; }
   if(d.t==="lobby"){bgmStop();if(hAnsRef){hAnsRef.off();hAnsRef=null;}show("view-host-lobby");if(roomRef)roomRef.child("state").set({phase:"lobby",qIndex:-1});}
