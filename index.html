@@ -616,7 +616,18 @@ function boardHTML(q){
   </div>
   <div class="liveout"><span class="livecount" data-live><span class="dot"></span><span data-livetext></span></span><span class="resultline" data-rl hidden></span></div>`;
 }
+function fitChoices(stageEl){
+  // 選択肢ラベルが長い時は…で省略せずフォントを縮めて全部表示。4つは一番小さいサイズに統一（全部収まるなら既定サイズのまま）
+  if(!stageEl)return;
+  const nms=[...stageEl.querySelectorAll(".panel .nm")];if(!nms.length)return;
+  nms.forEach(n=>{n.style.fontSize="";});
+  const def=parseFloat(getComputedStyle(nms[0]).fontSize)||18;
+  let size=def;
+  nms.forEach(n=>{let f=def;n.style.fontSize=f+"px";let g=0;while(f>8&&n.scrollWidth>n.clientWidth+0.5&&g++<110){f-=1;n.style.fontSize=f+"px";}if(f<size)size=f;});
+  nms.forEach(n=>{n.style.fontSize=size+"px";});
+}
 function fitQ(stageEl){
+  fitChoices(stageEl);
   const span=stageEl&&stageEl.querySelector(".qvert span");if(!span)return;
   const box=span.parentElement;
   const vertical=(getComputedStyle(span).writingMode||"").indexOf("vertical")===0;
@@ -651,6 +662,7 @@ function applyReveal(stageEl,q,counts){
   const live=stageEl.querySelector(".livecount");if(live)live.style.display="none";
   const total=counts.reduce((a,b)=>a+b,0)||0;const rl=stageEl.querySelector("[data-rl]");
   if(rl){rl.hidden=false;rl.innerHTML=`正解 <b>${q.answer+1}番</b>／${counts[q.answer]||0}人（${total?Math.round((counts[q.answer]||0)/total*100):0}%）`;}
+  fitChoices(stageEl); // 票数ピル表示後も選択肢を省略せず収める
 }
 
 /* ---------- confetti ---------- */
