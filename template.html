@@ -319,7 +319,7 @@ function show(id){["view-config","view-host-home","view-test","view-host-lobby",
 
 /* ---------- board rendering (shared) ---------- */
 function panelMarkup(c,i){
-  const body=c.img?`<div class="body"><img src="${c.img}" alt="" style="--ps:${c.imgPosSP||'50% 50%'};--pp:${c.imgPosPC||'50% 50%'}"></div>`:`<div class="body"><span class="ph">画像なし</span></div>`;
+  const body=c.img?`<div class="body"><img src="${c.img}" alt="" style="--ps:${c.imgPosSP||'50% 50%'};--pp:${c.imgPosPC||'50% 50%'};--zs:${c.imgZoomSP||1};--zp:${c.imgZoomPC||1}"></div>`:`<div class="body"><span class="ph">画像なし</span></div>`;
   return `${body}<div class="bar"><span class="no tnum">${i+1}</span><span class="nm">${esc(c.text)||("選択"+(i+1))}</span><span class="cnt tnum" hidden></span></div>`;
 }
 function boardHTML(q){
@@ -476,13 +476,14 @@ function renderEditor(){const el=$("#admin-list");if(!el)return;
        <button class="ed-del" data-act="del" title="削除">🗑</button></div>
      <input class="ed-in" data-act="q" placeholder="問題文（例：日本で一番高い山は？）" value="${esc(q.q)}">
      <div class="ed-choices">${q.choices.map((c,ci)=>{
-       const pos=(edPrevMode==='sp'?c.imgPosSP:c.imgPosPC)||'50% 50%';const pm=pos.match(/(\d+)\s*%?\s+(\d+)\s*%?/);const px=pm?pm[1]:50,py=pm?pm[2]:50;
+       const pos=(edPrevMode==='sp'?c.imgPosSP:c.imgPosPC)||'50% 50%';const pm=pos.match(/(\d+)\s*%?\s+(\d+)\s*%?/);const px=pm?pm[1]:50,py=pm?pm[2]:50;const zoom=(edPrevMode==='sp'?c.imgZoomSP:c.imgZoomPC)||1;
        return `
        <div class="ed-ch ${q.answer===ci?"ans":""}" data-ci="${ci}"><span class="ed-no">${ci+1}</span>
          ${c.img?`<div class="ed-imgwrap" style="flex:0 0 ${edPrevMode==='sp'?'126px':'156px'};display:flex;flex-direction:column;gap:4px">
-           <div class="ed-img has" style="flex:none;aspect-ratio:${edPrevMode==='sp'?'16/10':'16/9'};height:auto;width:100%;cursor:grab;position:relative;overflow:hidden;touch-action:none;user-select:none"><img src="${c.img}" draggable="false" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:${pos};pointer-events:none;display:block"><label class="ed-chg" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;padding:2px 6px;border-radius:5px;cursor:pointer;z-index:2">変更<input type="file" accept="image/*" data-act="img" hidden></label></div>
+           <div class="ed-img has" style="flex:none;aspect-ratio:${edPrevMode==='sp'?'16/10':'16/9'};height:auto;width:100%;cursor:grab;position:relative;overflow:hidden;touch-action:none;user-select:none"><img src="${c.img}" draggable="false" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:${pos};transform:scale(${zoom});transform-origin:${pos};pointer-events:none;display:block"><label class="ed-chg" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;padding:2px 6px;border-radius:5px;cursor:pointer;z-index:2">変更<input type="file" accept="image/*" data-act="img" hidden></label></div>
            <label style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">横<input type="range" data-act="posx" min="0" max="100" value="${px}" style="flex:1"></label>
            <label style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">縦<input type="range" data-act="posy" min="0" max="100" value="${py}" style="flex:1"></label>
+           <label style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">拡大<input type="range" data-act="zoom" min="1" max="3" step="0.05" value="${zoom}" style="flex:1"></label>
          </div>`:`<label class="ed-img"><input type="file" accept="image/*" data-act="img" hidden>＋画像</label>`}
          <input class="ed-in ed-ct" data-act="choice" placeholder="選択肢${ci+1}（例：富士山）" value="${esc(c.text)}">
          <button class="ed-ans ${q.answer===ci?"on":""}" data-act="ans">${q.answer===ci?"✓正解":"正解"}</button></div>`;}).join("")}</div>
@@ -492,7 +493,8 @@ function wireEditor(){const host=$("#admin-list");
   host.addEventListener("input",e=>{const t=e.target,a=t.dataset.act,card=t.closest(".qed");if(!card||!a)return;const qi=+card.dataset.qi;
     if(a==="q")questions[qi].q=t.value;
     else if(a==="choice"){questions[qi].choices[+t.closest(".ed-ch").dataset.ci].text=t.value;}
-    else if(a==="posx"||a==="posy"){const ch=t.closest(".ed-ch"),ci=+ch.dataset.ci,c=questions[qi].choices[ci];const cur=(edPrevMode==='sp'?c.imgPosSP:c.imgPosPC)||'50% 50%';const m=cur.match(/(\d+)\s*%?\s+(\d+)\s*%?/);let x=m?+m[1]:50,y=m?+m[2]:50;if(a==="posx")x=+t.value;else y=+t.value;const val=x+"% "+y+"%";if(edPrevMode==='sp')c.imgPosSP=val;else c.imgPosPC=val;const img=ch.querySelector(".ed-img.has img");if(img)img.style.objectPosition=val;}
+    else if(a==="posx"||a==="posy"){const ch=t.closest(".ed-ch"),ci=+ch.dataset.ci,c=questions[qi].choices[ci];const cur=(edPrevMode==='sp'?c.imgPosSP:c.imgPosPC)||'50% 50%';const m=cur.match(/(\d+)\s*%?\s+(\d+)\s*%?/);let x=m?+m[1]:50,y=m?+m[2]:50;if(a==="posx")x=+t.value;else y=+t.value;const val=x+"% "+y+"%";if(edPrevMode==='sp')c.imgPosSP=val;else c.imgPosPC=val;const img=ch.querySelector(".ed-img.has img");if(img){img.style.objectPosition=val;img.style.transformOrigin=val;}}
+    else if(a==="zoom"){const ch=t.closest(".ed-ch"),ci=+ch.dataset.ci,c=questions[qi].choices[ci];const z=+t.value;if(edPrevMode==='sp')c.imgZoomSP=z;else c.imgZoomPC=z;const img=ch.querySelector(".ed-img.has img");if(img)img.style.transform="scale("+z+")";}
     saveStore();});
   host.addEventListener("change",e=>{const t=e.target,a=t.dataset.act,card=t.closest(".qed");if(!card||!a)return;const qi=+card.dataset.qi;
     if(a==="time"){questions[qi].time=+t.value;saveStore();}
@@ -517,7 +519,7 @@ function wireEditor(){const host=$("#admin-list");
   window.addEventListener("pointermove",e=>{if(!drag)return;e.preventDefault();const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;
     if(Math.abs(dx)+Math.abs(dy)>3)dragMoved=true;
     const nx=Math.max(0,Math.min(100,drag.px-dx/drag.w*100)),ny=Math.max(0,Math.min(100,drag.py-dy/drag.h*100));
-    const val=Math.round(nx)+"% "+Math.round(ny)+"%";drag.img.style.objectPosition=val;
+    const val=Math.round(nx)+"% "+Math.round(ny)+"%";drag.img.style.objectPosition=val;drag.img.style.transformOrigin=val;
     const c=questions[drag.qi].choices[drag.ci];if(edPrevMode==='sp')c.imgPosSP=val;else c.imgPosPC=val;},{passive:false});
   window.addEventListener("pointerup",()=>{if(drag){saveStore();drag=null;}});
   host.addEventListener("click",e=>{if(dragMoved){const lab=e.target.closest(".ed-img");if(lab){e.preventDefault();e.stopPropagation();}dragMoved=false;}},true);

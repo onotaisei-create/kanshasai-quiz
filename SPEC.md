@@ -63,4 +63,5 @@
 - スマホの選択肢ラベルは**…で省略せず2行折返し**（各選択肢ごとに独立でフォント調整、下限12px、短いものは既定サイズ）。PC/投影は従来どおり1行・4つ最小サイズに統一。
 - 選択肢パネルは**固定サイズ**（スマホは画像エリアを aspect-ratio 16/10 固定）。設定画像で縦長にならない。
 - 画像の表示位置は**エディタで実プレビューをドラッグ＋横/縦スライダーで調整**。右上の「👁スマホ表示⇄PC表示」で切替でき、**SPとPCで別々の位置**を保存（choices[].imgPosSP / imgPosPC）。実クイズはCSS変数 --ps(スマホ)/--pp(PC) の object-position で反映。
+- **拡大(ズーム)対応**：各画像に「拡大」スライダー(1.0〜3.0)。imgZoomSP/imgZoomPCで保存。実装＝img に `transform:scale(var(--zs/--zp));transform-origin:var(--ps/--pp)`。cover表示では画像が枠より狭い軸は動かせない(幾何学的に当然)が、ズームすると両軸にはみ出しができ横も縦も transform-origin=posで動かせる。「横が動かん」はこれで解決(ズームして横パン)。空白の縁は出ない(zoom≥1)。Playwrightで両軸パン＋盤面の--zs/--zp出力を実測確認。
 - **【2026-10-19 真因】「画像が動かない」の原因＝エディタのプレビュー枠が縦flex内で board.css `.ed-img{flex:0 0 64px}` に高さ64px固定され、`aspect-ratio:16/10` が負けて枠が画像の実寸比率になり無クロップで全体表示→object-positionに効く余地が無かった。ドラッグ/スライダーのJSは元々正常。修正＝プレビューの .ed-img.has に `flex:none` + imgを `position:absolute;inset:0` + 枠に `overflow:hidden`。これで枠が16/10を保持しcoverクロップが効く。Playwrightで画素変化を実測確認済（縦端→端でFACE表示切替）。object-positionは「はみ出しが有る軸だけ」効く点に注意（枠比率と画像比率が一致すると動かない＝今回のバグ）。
