@@ -190,7 +190,10 @@ button{font-family:inherit}
 .ed-in{width:100%;padding:11px 13px;border-radius:10px;border:1px solid var(--line2);background:rgba(3,16,52,.45);color:var(--fg);font:inherit;margin-bottom:8px}
 .ed-in:focus{outline:2px solid var(--gold)}
 .ed-choices{display:grid;gap:8px;margin-top:4px}
-.ed-ch{display:flex;align-items:center;gap:9px;background:rgba(3,16,52,.3);border:1px solid var(--line2);border-radius:10px;padding:8px}
+.ed-ch{display:flex;flex-wrap:wrap;align-items:center;gap:9px;background:rgba(3,16,52,.3);border:1px solid var(--line2);border-radius:10px;padding:8px}
+.ed-ct{flex:1 1 150px;min-width:0}
+.ed-imgwrap label{min-width:0}
+.ed-imgwrap input[type=range]{min-width:0;width:100%}
 .ed-ch.ans{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
 .ed-no{flex:0 0 30px;height:30px;border-radius:50%;display:grid;place-items:center;font-family:var(--num);font-weight:700;color:#fff;background:radial-gradient(circle at 50% 35%,#6a5bd6,#3a2d9e)}
 .ed-ct{margin-bottom:0}
