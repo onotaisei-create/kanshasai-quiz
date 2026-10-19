@@ -286,7 +286,7 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
   .count{flex:0 0 auto;width:46px;height:46px;margin-left:auto;
     box-shadow:0 0 0 3px rgba(255,255,255,.9),0 0 0 5px rgba(0,0,0,.25),0 3px 8px rgba(0,0,0,.4)}
   .count .cnum{font-size:24px}
-  .panel .body{min-height:32vw}
+  .panel .body{aspect-ratio:16/10;min-height:0;flex:0 0 auto}
   /* 練習バッジは重ねず、上に通常配置 */
   .pracbadge{position:static;display:inline-block;margin:0 0 8px;font-size:13px}
 }
