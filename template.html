@@ -477,7 +477,7 @@ function renderEditor(){const el=$("#admin-list");if(!el)return;
      <input class="ed-in" data-act="q" placeholder="問題文（例：日本で一番高い山は？）" value="${esc(q.q)}">
      <div class="ed-choices">${q.choices.map((c,ci)=>`
        <div class="ed-ch ${q.answer===ci?"ans":""}" data-ci="${ci}"><span class="ed-no">${ci+1}</span>
-         <label class="ed-img ${c.img?'has':''}" ${c.img?`style="flex:0 0 ${edPrevMode==='sp'?'120px':'150px'};aspect-ratio:${edPrevMode==='sp'?'16/10':'16/9'};height:auto;cursor:grab"`:''}>${c.img?`<img src="${c.img}" draggable="false" style="width:100%;height:100%;object-fit:cover;object-position:${(edPrevMode==='sp'?c.imgPosSP:c.imgPosPC)||'50% 50%'}">`:`＋画像`}<input type="file" accept="image/*" data-act="img" hidden></label>
+         ${c.img?`<div class="ed-img has" style="flex:0 0 ${edPrevMode==='sp'?'120px':'150px'};aspect-ratio:${edPrevMode==='sp'?'16/10':'16/9'};height:auto;cursor:grab;position:relative;touch-action:none;user-select:none"><img src="${c.img}" draggable="false" style="width:100%;height:100%;object-fit:cover;object-position:${(edPrevMode==='sp'?c.imgPosSP:c.imgPosPC)||'50% 50%'};pointer-events:none;display:block"><label class="ed-chg" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;padding:2px 6px;border-radius:5px;cursor:pointer;z-index:2">変更<input type="file" accept="image/*" data-act="img" hidden></label></div>`:`<label class="ed-img"><input type="file" accept="image/*" data-act="img" hidden>＋画像</label>`}
          <input class="ed-in ed-ct" data-act="choice" placeholder="選択肢${ci+1}（例：富士山）" value="${esc(c.text)}">
          <button class="ed-ans ${q.answer===ci?"on":""}" data-act="ans">${q.answer===ci?"✓正解":"正解"}</button></div>`).join("")}</div>
    </div>`).join("")+`<div class="ed-add"><button class="btn sm blue" data-add="1">＋ 問題を追加</button></div>`;
@@ -499,7 +499,7 @@ function wireEditor(){const host=$("#admin-list");
     else if(a==="prevmode"){edPrevMode=edPrevMode==='sp'?'pc':'sp';renderEditor();}});
   // 画像をドラッグして表示位置(object-position)を調整。SP/PCで別々に保存。実プレビューを見ながら合わせられる
   let drag=null,dragMoved=false;
-  host.addEventListener("pointerdown",e=>{const lab=e.target.closest(".ed-img.has");if(!lab)return;const img=lab.querySelector("img");if(!img)return;
+  host.addEventListener("pointerdown",e=>{if(e.target.closest(".ed-chg"))return;const lab=e.target.closest(".ed-img.has");if(!lab)return;const img=lab.querySelector("img");if(!img)return;
     const card=lab.closest(".qed"),ch=lab.closest(".ed-ch");const qi=+card.dataset.qi,ci=+ch.dataset.ci;const r=lab.getBoundingClientRect();
     const cur=(edPrevMode==='sp'?questions[qi].choices[ci].imgPosSP:questions[qi].choices[ci].imgPosPC)||'50% 50%';
     const m=cur.match(/(-?\d+(?:\.\d+)?)%?\s+(-?\d+(?:\.\d+)?)%?/);const px=m?+m[1]:50,py=m?+m[2]:50;
