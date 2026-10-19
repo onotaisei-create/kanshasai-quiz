@@ -797,13 +797,13 @@ function wireEditor(){const host=$("#admin-list");
     const cur=(edPrevMode==='sp'?questions[qi].choices[ci].imgPosSP:questions[qi].choices[ci].imgPosPC)||'50% 50%';
     const m=cur.match(/(-?\d+(?:\.\d+)?)%?\s+(-?\d+(?:\.\d+)?)%?/);const px=m?+m[1]:50,py=m?+m[2]:50;
     drag={qi,ci,img,sx:e.clientX,sy:e.clientY,px,py,w:r.width||1,h:r.height||1};dragMoved=false;
-    try{lab.setPointerCapture(e.pointerId);}catch(_){}});
-  host.addEventListener("pointermove",e=>{if(!drag)return;const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;
+    e.preventDefault();});
+  window.addEventListener("pointermove",e=>{if(!drag)return;e.preventDefault();const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;
     if(Math.abs(dx)+Math.abs(dy)>3)dragMoved=true;
     const nx=Math.max(0,Math.min(100,drag.px-dx/drag.w*100)),ny=Math.max(0,Math.min(100,drag.py-dy/drag.h*100));
     const val=Math.round(nx)+"% "+Math.round(ny)+"%";drag.img.style.objectPosition=val;
-    const c=questions[drag.qi].choices[drag.ci];if(edPrevMode==='sp')c.imgPosSP=val;else c.imgPosPC=val;});
-  host.addEventListener("pointerup",()=>{if(drag){saveStore();drag=null;}});
+    const c=questions[drag.qi].choices[drag.ci];if(edPrevMode==='sp')c.imgPosSP=val;else c.imgPosPC=val;},{passive:false});
+  window.addEventListener("pointerup",()=>{if(drag){saveStore();drag=null;}});
   host.addEventListener("click",e=>{if(dragMoved){const lab=e.target.closest(".ed-img");if(lab){e.preventDefault();e.stopPropagation();}dragMoved=false;}},true);
 }
 
