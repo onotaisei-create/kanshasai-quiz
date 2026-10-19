@@ -52,3 +52,9 @@
 - GitHub Pages: https://onotaisei-create.github.io/kanshasai-quiz/ （repo onotaisei-create/kanshasai-quiz、main/root）。
 - 本番Netlify: taisei-yui-quiz.netlify.app（本番直前に `./deploy-netlify.sh`、要トークン、事前確認）。
 - QR/参加URLは location から動的生成＝ドメイン移動で崩れない。Firebase承認済みドメインに github.io / netlify.app 両方登録済み。
+
+## 予想問題（最後の実践用・2026-10追加）
+- エディタで各問に「予想問題にする」トグル。予想問題は事前に正解を決めない。
+- 進行：出題＋回答時間（参加者は1〜4の誰が優勝するか予想）→「予想を締め切る（集計）」で**枠光り・BGM無しで予想人数だけ表示**→ホストが**実際の勝者を選ぶ（ボタン①〜④ or キー1〜4、プロジェクターでも可）**→その選択肢が正解になり枠光り＋効果音。
+- 採点：予想問題は choice===勝者 で正解判定し、予想した人の正解数に加算（hostResultsが対応）。
+- ロビーに戻らず・リセットせず進行（通常の問題として最後に配置）。プレイヤーは勝者確定後に自分の正誤が出る。

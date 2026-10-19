@@ -204,6 +204,13 @@ body.projector .projhint{display:block}
       <button class="btn red adv" id="hToResults" hidden>個人成績ランキングへ</button>
       <button class="btn ghost sm" id="projBtn2">⛶ プロジェクター表示</button>
     </div>
+    <div id="predPick" hidden class="row center" style="gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
+      <b style="color:var(--gold-hi);font-size:clamp(14px,1.6vw,20px)">実際の勝者を選んでください（キー1〜4でもOK）→</b>
+      <button class="btn blue" data-pw="0">①</button>
+      <button class="btn blue" data-pw="1">②</button>
+      <button class="btn blue" data-pw="2">③</button>
+      <button class="btn blue" data-pw="3">④</button>
+    </div>
   </section>
 
   <section id="view-host-results" hidden>
@@ -316,7 +323,7 @@ function panelMarkup(c,i){
   return `${body}<div class="bar"><span class="no tnum">${i+1}</span><span class="nm">${esc(c.text)||("選択"+(i+1))}</span><span class="cnt tnum" hidden></span></div>`;
 }
 function boardHTML(q){
-  return `${q.practice?'<div class="pracbadge">練習問題（得点に入りません）</div>':''}<div class="stagegrid">
+  return `${q.practice?'<div class="pracbadge">練習問題（得点に入りません）</div>':''}${q.predict?'<div class="pracbadge" style="background:linear-gradient(180deg,#bfe4ff,#3f93dd);color:#062a47">予想問題（その場で勝者を決定）</div>':''}<div class="stagegrid">
     <div class="qpanels">${q.choices.map((c,i)=>`<div class="panel" data-i="${i}">${panelMarkup(c,i)}</div>`).join("")}</div>
     <div class="qcol"><div class="qcol-logo">ALL STAR<br>感謝祭</div><div class="qbadge">Q</div>
       <div class="qvert"><span>${esc(q.q)}</span></div>
@@ -393,6 +400,7 @@ let lastNav=0;
 // （以前は fullscreenchange で自動解除しており、戻る操作等で勝手にプロジェクターが外れていた）
 document.addEventListener("keydown",e=>{if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
   if(e.repeat)return; // 長押しのリピートで複数回進む/戻るのを防止（戻るが一気にロビーまで行く不具合対策）
+  if(isHost&&!document.getElementById("predPick").hidden&&e.key>="1"&&e.key<="4"){e.preventDefault();pickWinner(+e.key-1);return;} // 予想問題：勝者をキー1〜4で選ぶ
   if(e.key===" "||e.key==="Enter"||e.key==="ArrowRight"){
     if(isHost&&!document.getElementById("view-end").hidden){e.preventDefault();goHome();return;} // エンディングでSpace→ホーム
     const secs=["view-host-lobby","view-host-q","view-host-results"];
@@ -455,6 +463,7 @@ function renderEditor(){const el=$("#admin-list");if(!el)return;
    <div class="qed" data-qi="${qi}">
      <div class="qed-top"><span class="qed-n">${q.practice?"練習問題":"問 "+(qi+1)}</span>
        <button class="ed-prac ${q.practice?"on":""}" data-act="prac">${q.practice?"● 練習（採点なし）":"練習にする"}</button>
+       <button class="ed-prac ${q.predict?"on":""}" data-act="predict" style="${q.predict?'background:linear-gradient(180deg,#8fc8ff,#2a7fe0);color:#042033;border-color:transparent':''}">${q.predict?"● 予想問題":"予想問題にする"}</button>
        <select class="ed-time" data-act="time">${[10,15,20,30,60].map(t=>`<option value="${t}" ${(q.time||10)===t?"selected":""}>${t}秒</option>`).join("")}</select>
        <button class="ed-del" data-act="del" title="削除">🗑</button></div>
      <input class="ed-in" data-act="q" placeholder="問題文（例：日本で一番高い山は？）" value="${esc(q.q)}">
@@ -475,6 +484,7 @@ function wireEditor(){const host=$("#admin-list");
     const card=t.closest(".qed");if(!card)return;const qi=+card.dataset.qi,a=t.dataset.act;
     if(a==="del"){if(questions.length>1){questions.splice(qi,1);saveStore();renderEditor();}}
     else if(a==="prac"){questions[qi].practice=!questions[qi].practice;saveStore();renderEditor();}
+    else if(a==="predict"){questions[qi].predict=!questions[qi].predict;saveStore();renderEditor();}
     else if(a==="ans"){questions[qi].answer=+t.closest(".ed-ch").dataset.ci;saveStore();renderEditor();}});
 }
 
@@ -519,6 +529,7 @@ function hostStartQuestion(i){
   show("view-host-q");
   const q=Q[i];const st=$("#hStage");st.innerHTML=boardHTML(q);fitQ(st);
   $("#hReveal").hidden=false;$("#hNext").hidden=true;$("#hToResults").hidden=true;
+  $("#predPick").hidden=true;$("#hReveal").textContent=q.predict?"予想を締め切る（集計）":"解答締め切り・正解発表";
   roomRef.child("state").set({phase:"question",qIndex:i,time:q.time||10,at:firebase.database.ServerValue.TIMESTAMP});
   bgmPlay();
   startCountdown(st,q.time||10,()=>{const lt=st.querySelector("[data-livetext]");if(lt)lt.innerHTML="時間切れ — <b style='color:var(--gold-hi)'>「正解発表」</b>を押してください";});
@@ -526,16 +537,39 @@ function hostStartQuestion(i){
   hAnsRef=roomRef.child("answers/"+i);
   hAnsRef.on("value",s=>{const n=s.numChildren();const lt=st.querySelector("[data-livetext]");if(lt&&!/時間切れ/.test(lt.innerHTML))lt.textContent=n+" 人が回答";});
 }
+let predCounts=[0,0,0,0];
 $("#hReveal").onclick=()=>{
   navHist.push({t:"question",i:hCurQ});
   const i=hCurQ,q=Q[i];
   roomRef.child("answers/"+i).once("value",s=>{
     const counts=[0,0,0,0];s.forEach(ch=>{const a=ch.val();if(a&&a.choice>=0&&a.choice<4)counts[a.choice]++;});
+    if(q.predict){ // 予想問題：枠光り・BGMなしで予想人数だけ表示 → 勝者をボタン/キーで選ぶ
+      predCounts=counts;showPredict($("#hStage"),counts);
+      roomRef.child("state").update({phase:"predict"});
+      $("#hReveal").hidden=true;$("#predPick").hidden=false;
+      return;
+    }
     applyReveal($("#hStage"),q,counts);bgmStop();
     roomRef.child("state").update({phase:"reveal"});
     $("#hReveal").hidden=true;if(i<Q.length-1)$("#hNext").hidden=false;else $("#hToResults").hidden=false;
   });
 };
+function showPredict(stageEl,counts){
+  cancelAnimationFrame(cdRAF);bgmStop(); // 効果音・枠光りなし。予想人数のピルだけ表示
+  const cn=stageEl.querySelector("[data-cnum]");if(cn)cn.textContent="0";
+  stageEl.querySelectorAll(".panel").forEach(el=>{const i=+el.dataset.i,c=el.querySelector(".cnt");if(c){c.hidden=false;c.textContent=(counts[i]||0)+"人";}el.classList.remove("correct","wrong","blink");});
+  const live=stageEl.querySelector(".livecount");if(live)live.style.display="none";
+  const rl=stageEl.querySelector("[data-rl]");if(rl){rl.hidden=false;rl.innerHTML="予想の集計（実際の勝者を選ぶと正解になります）";}
+  fitChoices(stageEl);
+}
+function pickWinner(k){
+  const i=hCurQ,q=Q[i];if(!q||!q.predict||$("#predPick").hidden)return;
+  q.answer=k; // 勝者＝正解。hostResultsがchoice===answerで採点
+  applyReveal($("#hStage"),q,predCounts); // ここで枠光り＋効果音
+  if(roomRef){roomRef.child("questions/"+i+"/answer").set(k);roomRef.child("state").update({phase:"reveal",predAns:k});}
+  $("#predPick").hidden=true;if(i<Q.length-1)$("#hNext").hidden=false;else $("#hToResults").hidden=false;
+}
+document.querySelectorAll("#predPick [data-pw]").forEach(b=>b.onclick=()=>pickWinner(+b.dataset.pw));
 $("#hNext").onclick=()=>{navHist.push({t:"reveal",i:hCurQ});hostStartQuestion(hCurQ+1);};
 $("#hToResults").onclick=()=>{navHist.push({t:"reveal",i:hCurQ});hostResults();};
 
@@ -543,7 +577,7 @@ function hostResults(){
   Promise.all([roomRef.child("players").once("value"),roomRef.child("answers").once("value")]).then(([ps,ans])=>{
     const players=ps.val()||{};const answers=ans.val()||{};
     const agg={};Object.keys(players).forEach(u=>agg[u]={uid:u,name:players[u].name||"参加者",correct:0,ms:0});
-    Object.keys(answers).forEach(qi=>{if(Q[qi]&&Q[qi].practice)return;const byU=answers[qi]||{};Object.keys(byU).forEach(u=>{if(!agg[u])agg[u]={uid:u,name:(players[u]&&players[u].name)||"参加者",correct:0,ms:0};const a=byU[u];if(a.correct)agg[u].correct++;agg[u].ms+=(a.ms||0);});});
+    Object.keys(answers).forEach(qi=>{if(Q[qi]&&Q[qi].practice)return;const byU=answers[qi]||{};Object.keys(byU).forEach(u=>{if(!agg[u])agg[u]={uid:u,name:(players[u]&&players[u].name)||"参加者",correct:0,ms:0};const a=byU[u];const corr=(Q[qi]&&Q[qi].predict)?(a.choice===Q[qi].answer):a.correct;if(corr)agg[u].correct++;agg[u].ms+=(a.ms||0);});});
     ranked=Object.values(agg).sort((a,b)=>b.correct-a.correct||a.ms-b.ms);
     const list=ranked.map((p,i)=>({rank:i+1,uid:p.uid,name:p.name,correct:p.correct,ms:p.ms}));
     roomRef.child("results").set(list);
@@ -623,7 +657,8 @@ function playerOnState(st){
     if(answeredQ!==st.qIndex||lastPhase!=="question"){ // new question
       renderPlayerQ(st.qIndex);
     }
-  } else if(phase==="reveal"){ playerReveal(st.qIndex); }
+  } else if(phase==="reveal"){ if(st.predAns!=null&&Q[st.qIndex])Q[st.qIndex].answer=st.predAns; playerReveal(st.qIndex); }
+  else if(phase==="predict"){ /* 予想集計中：参加者は回答済みのまま待機 */ }
   else if(phase==="results"){ playerResult(); }
   else if(phase==="ending"){ $("#endMsg").innerHTML="ご参加ありがとうございました"; show("view-end"); }
   lastPhase=phase;
@@ -656,7 +691,8 @@ function playerReveal(i){
   roomRef.child("answers/"+i).once("value",s=>{const counts=[0,0,0,0];let my=null;s.forEach(ch=>{const a=ch.val();if(a&&a.choice>=0&&a.choice<4)counts[a.choice]++;if(ch.key===uid)my=a;});
     applyReveal(st,q,counts);
     $("#pConfirm").hidden=false;$("#pConfirm").disabled=true;
-    $("#pConfirm").textContent= my? (my.correct?("正解！ "+(my.ms/1000).toFixed(1)+"秒"):"残念…"):"未回答";
+    const corr= my ? ((q.predict)?(my.choice===q.answer):my.correct) : null;
+    $("#pConfirm").textContent= my? (corr?("正解！ "+(my.ms/1000).toFixed(1)+"秒"):"残念…"):"未回答";
   });
   bgmStop();
 }
