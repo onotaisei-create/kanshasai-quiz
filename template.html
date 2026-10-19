@@ -465,7 +465,7 @@ function saveStore(){try{localStorage.setItem(LSKEY,JSON.stringify(questions));}
 let questions=loadStore();
 let edPrevMode="pc"; // エディタの画像位置プレビュー：'sp'=スマホ(16:10) / 'pc'=プロジェクター(約2:1)。位置/拡大の値は共通
 function newQ(){return {practice:false,type:"image",time:10,q:"",choices:[0,1,2,3].map(()=>({text:"",img:null})),answer:0};}
-function resizeImg(file,cb){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const max=420;let w=im.width,h=im.height;const sc=Math.min(1,max/Math.max(w,h));const c=document.createElement("canvas");c.width=Math.round(w*sc);c.height=Math.round(h*sc);c.getContext("2d").drawImage(im,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",.78));};im.src=r.result;};r.readAsDataURL(file);}
+function resizeImg(file,cb){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const max=900;let w=im.width,h=im.height;const sc=Math.min(1,max/Math.max(w,h));const c=document.createElement("canvas");c.width=Math.round(w*sc);c.height=Math.round(h*sc);const x=c.getContext("2d");x.imageSmoothingEnabled=true;x.imageSmoothingQuality="high";x.drawImage(im,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",.92));};im.src=r.result;};r.readAsDataURL(file);}
 function renderEditor(){const el=$("#admin-list");if(!el)return;
   el.innerHTML=questions.map((q,qi)=>`
    <div class="qed" data-qi="${qi}">
