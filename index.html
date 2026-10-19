@@ -91,7 +91,8 @@ button{font-family:inherit}
 .panel{display:flex;flex-direction:column;border-radius:11px;overflow:hidden;background:#fff;min-height:0;
   border:3px solid #86b4ff;box-shadow:0 3px 0 rgba(0,0,0,.28),0 0 0 2px rgba(255,255,255,.4) inset;transition:border-color .3s,opacity .3s,box-shadow .3s}
 .panel .body{flex:1;min-height:0;position:relative;display:grid;place-items:center;overflow:hidden;background:linear-gradient(180deg,#cfe0fb,#aec6f0)}
-.panel .body img{width:100%;height:100%;object-fit:cover;display:block;object-position:var(--pp,50% 50%);transform:scale(var(--zp,1));transform-origin:var(--pp,50% 50%)}
+/* imgはabsolute配置。親.bodyのdisplay:grid;place-items:centerが効くとobject-positionが無視される(グリッド配置とobject-fitの干渉)ため、グリッドフローから外して位置指定を確実に効かせる */
+.panel .body img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;object-position:var(--pp,50% 50%);transform:scale(var(--zp,1));transform-origin:var(--pp,50% 50%)}
 .panel .body .big{font-family:var(--ds);font-weight:900;color:#0c2344;font-size:clamp(15px,3.4vw,22px);text-align:center;padding:8px 10px;line-height:1.3;max-height:100%;overflow:hidden}
 .panel .body .ph{color:#5f78a6;font-size:12px;font-weight:700}
 .panel .bar{flex:0 0 auto;display:flex;align-items:center;gap:7px;background:#fff;padding:5px 8px;min-height:38px}
@@ -611,8 +612,9 @@ $("#mute").onclick=()=>{muted=!muted;$("#mute").textContent=muted?"🔇":"🔊";
 function show(id){["view-config","view-host-home","view-test","view-host-lobby","view-host-q","view-host-results","view-join","view-player-lobby","view-player-q","view-player-result","view-end"].forEach(v=>{const e=document.getElementById(v);if(e)e.hidden=(v!==id);});}
 
 /* ---------- board rendering (shared) ---------- */
+// 画像の表示位置/拡大はスマホ(SP)とスクリーン(PC)で別々に保持。SP=--ps/--zs, PC=--pp/--zp。
 function panelMarkup(c,i){
-  const body=c.img?`<div class="body"><img src="${c.img}" alt="" style="--ps:${c.imgPosSP||'50% 50%'};--pp:${c.imgPosPC||'50% 50%'};--zs:${c.imgZoomSP||1};--zp:${c.imgZoomPC||1}"></div>`:`<div class="body"><span class="ph">画像なし</span></div>`;
+  const body=c.img?`<div class="body"><img src="${c.img}" alt="" style="--ps:${c.imgPosSP||'50% 50%'};--pp:${c.imgPosPC||'50% 50%'};--zs:${+c.imgZoomSP||1};--zp:${+c.imgZoomPC||1}"></div>`:`<div class="body"><span class="ph">画像なし</span></div>`;
   return `${body}<div class="bar"><span class="no tnum">${i+1}</span><span class="nm">${esc(c.text)||("選択"+(i+1))}</span><span class="cnt tnum" hidden></span></div>`;
 }
 function boardHTML(q){
@@ -755,7 +757,7 @@ function defaultQuestions(){
 function loadStore(){try{const s=localStorage.getItem(LSKEY);if(s){const a=JSON.parse(s);if(Array.isArray(a)&&a.length)return a;}}catch(e){}return defaultQuestions();}
 function saveStore(){try{localStorage.setItem(LSKEY,JSON.stringify(questions));}catch(e){}}
 let questions=loadStore();
-let edPrevMode="sp"; // エディタの画像位置プレビュー：'sp'=スマホ(16:10) / 'pc'=プロジェクター(16:9)
+let edPrevMode="pc"; // エディタの画像位置プレビュー：'sp'=スマホ(16:10) / 'pc'=プロジェクター(約2:1)。位置/拡大の値は共通
 function newQ(){return {practice:false,type:"image",time:10,q:"",choices:[0,1,2,3].map(()=>({text:"",img:null})),answer:0};}
 function resizeImg(file,cb){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const max=420;let w=im.width,h=im.height;const sc=Math.min(1,max/Math.max(w,h));const c=document.createElement("canvas");c.width=Math.round(w*sc);c.height=Math.round(h*sc);c.getContext("2d").drawImage(im,0,0,c.width,c.height);cb(c.toDataURL("image/jpeg",.78));};im.src=r.result;};r.readAsDataURL(file);}
 function renderEditor(){const el=$("#admin-list");if(!el)return;
@@ -765,15 +767,15 @@ function renderEditor(){const el=$("#admin-list");if(!el)return;
        <button class="ed-prac ${q.practice?"on":""}" data-act="prac">${q.practice?"● 練習（採点なし）":"練習にする"}</button>
        <button class="ed-prac ${q.predict?"on":""}" data-act="predict" style="${q.predict?'background:linear-gradient(180deg,#8fc8ff,#2a7fe0);color:#042033;border-color:transparent':''}">${q.predict?"● 予想問題":"予想問題にする"}</button>
        <select class="ed-time" data-act="time">${[10,15,20,30,60].map(t=>`<option value="${t}" ${(q.time||10)===t?"selected":""}>${t}秒</option>`).join("")}</select>
-       <button class="ed-prac ${edPrevMode==='pc'?'on':''}" data-act="prevmode" title="画像位置プレビュー切替">👁 ${edPrevMode==='sp'?'スマホ表示':'PC表示'}（画像ドラッグで位置調整）</button>
+       <button class="ed-prac ${edPrevMode==='pc'?'on':''}" data-act="prevmode" title="調整対象を切替（スマホ用とスクリーン用は別々に保存）">👁 ${edPrevMode==='sp'?'スマホ用を調整中':'スクリーン用を調整中'}（タップで切替）</button>
        <button class="ed-del" data-act="del" title="削除">🗑</button></div>
      <input class="ed-in" data-act="q" placeholder="問題文（例：日本で一番高い山は？）" value="${esc(q.q)}">
      <div class="ed-choices">${q.choices.map((c,ci)=>{
        const pos=(edPrevMode==='sp'?c.imgPosSP:c.imgPosPC)||'50% 50%';const pm=pos.match(/(\d+)\s*%?\s+(\d+)\s*%?/);const px=pm?pm[1]:50,py=pm?pm[2]:50;const zoom=(edPrevMode==='sp'?c.imgZoomSP:c.imgZoomPC)||1;
        return `
        <div class="ed-ch ${q.answer===ci?"ans":""}" data-ci="${ci}"><span class="ed-no">${ci+1}</span>
-         ${c.img?`<div class="ed-imgwrap" style="flex:0 0 ${edPrevMode==='sp'?'126px':'156px'};display:flex;flex-direction:column;gap:4px">
-           <div class="ed-img has" style="flex:none;aspect-ratio:${edPrevMode==='sp'?'16/10':'16/9'};height:auto;width:100%;cursor:grab;position:relative;overflow:hidden;touch-action:none;user-select:none"><img src="${c.img}" draggable="false" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:${pos};transform:scale(${zoom});transform-origin:${pos};pointer-events:none;display:block"><label class="ed-chg" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;padding:2px 6px;border-radius:5px;cursor:pointer;z-index:2">変更<input type="file" accept="image/*" data-act="img" hidden></label></div>
+         ${c.img?`<div class="ed-imgwrap" style="flex:0 0 ${edPrevMode==='sp'?'126px':'184px'};display:flex;flex-direction:column;gap:4px">
+           <div class="ed-img has" style="flex:none;aspect-ratio:${edPrevMode==='sp'?'16/10':'2/1'};height:auto;width:100%;cursor:grab;position:relative;overflow:hidden;touch-action:none;user-select:none"><img src="${c.img}" draggable="false" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:${pos};transform:scale(${zoom});transform-origin:${pos};pointer-events:none;display:block"><label class="ed-chg" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;padding:2px 6px;border-radius:5px;cursor:pointer;z-index:2">変更<input type="file" accept="image/*" data-act="img" hidden></label></div>
            <label style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">横<input type="range" data-act="posx" min="0" max="100" value="${px}" style="flex:1"></label>
            <label style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">縦<input type="range" data-act="posy" min="0" max="100" value="${py}" style="flex:1"></label>
            <label style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">拡大<input type="range" data-act="zoom" min="1" max="3" step="0.05" value="${zoom}" style="flex:1"></label>

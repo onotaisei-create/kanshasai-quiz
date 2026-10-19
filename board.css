@@ -78,7 +78,8 @@ button{font-family:inherit}
 .panel{display:flex;flex-direction:column;border-radius:11px;overflow:hidden;background:#fff;min-height:0;
   border:3px solid #86b4ff;box-shadow:0 3px 0 rgba(0,0,0,.28),0 0 0 2px rgba(255,255,255,.4) inset;transition:border-color .3s,opacity .3s,box-shadow .3s}
 .panel .body{flex:1;min-height:0;position:relative;display:grid;place-items:center;overflow:hidden;background:linear-gradient(180deg,#cfe0fb,#aec6f0)}
-.panel .body img{width:100%;height:100%;object-fit:cover;display:block;object-position:var(--pp,50% 50%);transform:scale(var(--zp,1));transform-origin:var(--pp,50% 50%)}
+/* imgはabsolute配置。親.bodyのdisplay:grid;place-items:centerが効くとobject-positionが無視される(グリッド配置とobject-fitの干渉)ため、グリッドフローから外して位置指定を確実に効かせる */
+.panel .body img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;object-position:var(--pp,50% 50%);transform:scale(var(--zp,1));transform-origin:var(--pp,50% 50%)}
 .panel .body .big{font-family:var(--ds);font-weight:900;color:#0c2344;font-size:clamp(15px,3.4vw,22px);text-align:center;padding:8px 10px;line-height:1.3;max-height:100%;overflow:hidden}
 .panel .body .ph{color:#5f78a6;font-size:12px;font-weight:700}
 .panel .bar{flex:0 0 auto;display:flex;align-items:center;gap:7px;background:#fff;padding:5px 8px;min-height:38px}
