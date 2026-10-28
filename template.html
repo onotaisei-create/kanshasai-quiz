@@ -203,6 +203,7 @@ body.projector .projhint{display:block}
       <button class="btn blue adv" id="hNext" hidden>次の問題へ</button>
       <button class="btn red adv" id="hToResults" hidden>個人成績ランキングへ</button>
       <button class="btn blue adv" id="predNext" hidden>1番を紹介</button>
+      <button class="btn adv" id="predCount" hidden>予想数を表示</button>
       <button class="btn ghost sm" id="projBtn2">⛶ プロジェクター表示</button>
     </div>
     <div id="predPick" hidden class="row center" style="gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
@@ -571,7 +572,7 @@ function hostStartQuestion(i){
   show("view-host-q");
   const q=Q[i];const st=$("#hStage");st.classList.remove("predhide");st.innerHTML=boardHTML(q);fitQ(st);
   $("#hReveal").hidden=false;$("#hNext").hidden=true;$("#hToResults").hidden=true;
-  $("#predPick").hidden=true;$("#predNext").hidden=true;$("#hReveal").textContent="解答締め切り・正解発表";
+  $("#predPick").hidden=true;$("#predNext").hidden=true;$("#predCount").hidden=true;$("#hReveal").textContent="解答締め切り・正解発表";
   if(hAnsRef)hAnsRef.off();
   if(q.predict){predIntroStart(st);return;} // 予想問題：まず問題だけ映す（カウントダウンなし）→スペースで1人ずつ紹介
   roomRef.child("state").set({phase:"question",qIndex:i,time:q.time||10,at:firebase.database.ServerValue.TIMESTAMP});
@@ -605,7 +606,14 @@ $("#predNext").onclick=()=>{
   hAnsRef=roomRef.child("answers/"+i);
   hAnsRef.on("value",s=>{const n=s.numChildren();const lt=st.querySelector("[data-livetext]");if(lt&&!/時間切れ/.test(lt.innerHTML))lt.textContent=n+" 人が予想";});
 };
-function predTimeUp(st){bgmStop();const lt=st.querySelector("[data-livetext]");if(lt)lt.innerHTML="時間切れ — 実践のあと、<b style='color:var(--gold-hi)'>勝った人の番号キー（1〜4）</b>で正解発表";$("#predPick").hidden=false;}
+function predTimeUp(st){bgmStop();const lt=st.querySelector("[data-livetext]");if(lt)lt.innerHTML="時間切れ — <b style='color:var(--gold-hi)'>スペースで予想数を表示</b> → 実践のあと、勝った人の番号キー（1〜4）で正解発表";$("#predCount").hidden=false;$("#predPick").hidden=false;}
+// 時間切れ後のスペース：4人それぞれへの予想数を表示（枠は光らせない・効果音なし。ユーザー指定）
+$("#predCount").onclick=()=>{
+  const st=$("#hStage");$("#predCount").hidden=true;
+  const done=c=>{showPredict(st,c);const rl=st.querySelector("[data-rl]");if(rl)rl.innerHTML="予想数 — 実践のあと、<b>勝った人の番号キー（1〜4）</b>で正解発表";};
+  if(testing){const c=[0,0,0,0];testPerQ.forEach(a=>c[a.pick]++);done(c);return;}
+  roomRef.child("answers/"+hCurQ).once("value",s=>{const c=[0,0,0,0];s.forEach(ch=>{const a=ch.val();if(a&&a.choice>=0&&a.choice<4)c[a.choice]++;});done(c);roomRef.child("state").update({phase:"predict"});});
+};
 let predCounts=[0,0,0,0];
 $("#hReveal").onclick=()=>{
   navHist.push({t:"question",i:hCurQ});
@@ -630,7 +638,7 @@ function pickWinner(k){
   if($("#predPick").hidden)return;
   if(testing){testPickWinner(k);return;}
   const i=hCurQ,q=Q[i];if(!q||!q.predict)return;
-  $("#predPick").hidden=true;navHist.push({t:"question",i});
+  $("#predPick").hidden=true;$("#predCount").hidden=true;navHist.push({t:"question",i});
   roomRef.child("answers/"+i).once("value",s=>{
     const counts=[0,0,0,0];s.forEach(ch=>{const a=ch.val();if(a&&a.choice>=0&&a.choice<4)counts[a.choice]++;});
     q.answer=k; // 勝者＝正解。hostResultsがchoice===answerで採点
@@ -792,7 +800,7 @@ function testMain(){
 function testLoadQ(i){
   testIdx=i;const q=questions[i];if(!q){testResults();return;}
   show("view-host-q");const st=$("#hStage");st.classList.remove("predhide");st.innerHTML=boardHTML(q);fitQ(st);
-  $("#hReveal").hidden=false;$("#hNext").hidden=true;$("#hToResults").hidden=true;$("#predPick").hidden=true;$("#predNext").hidden=true;
+  $("#hReveal").hidden=false;$("#hNext").hidden=true;$("#hToResults").hidden=true;$("#predPick").hidden=true;$("#predNext").hidden=true;$("#predCount").hidden=true;
   const lim=q.time||10;
   testPerQ=testP.map(p=>{const correct=Math.random()<p.skill;let pick=q.predict?(Math.random()*4|0):q.answer;if(!q.predict&&!correct){do{pick=Math.random()*4|0;}while(pick===q.answer);}let ms=Math.round((p.speed+Math.random()*2.2)*1000);if(ms>lim*1000)ms=lim*1000;return{p,pick,correct:q.predict?false:correct,ms};}).sort((a,b)=>a.ms-b.ms);
   if(testRAF)cancelAnimationFrame(testRAF);
@@ -816,7 +824,7 @@ function testCountdown(q){
 }
 function testPickWinner(k){
   const q=questions[testIdx];if(!q||!q.predict)return;
-  if(testRAF)cancelAnimationFrame(testRAF);$("#predPick").hidden=true;
+  if(testRAF)cancelAnimationFrame(testRAF);$("#predPick").hidden=true;$("#predCount").hidden=true;
   const counts=[0,0,0,0];testPerQ.forEach(a=>{counts[a.pick]++;a.correct=(a.pick===k);});
   testPerQ.forEach(a=>{if(a.correct)a.p.correct++;a.p.ms+=a.ms;});
   applyReveal($("#hStage"),{...q,answer:k},counts);
