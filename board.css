@@ -301,3 +301,5 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
 .predhide .panel:not(.shown) .body img,.predhide .panel:not(.shown) .body .ph,.predhide .panel:not(.shown) .nm{visibility:hidden}
 .panel.introfx .body img,.panel.introfx .nm{animation:introPop .6s ease-out}
 @keyframes introPop{0%{opacity:0;filter:brightness(2.2)}100%{opacity:1;filter:none}}
+/* 選択肢の入れ替え（⇄） */
+.ed-swap{flex:0 0 auto;width:44px;height:30px;border-radius:8px;border:1px solid var(--line,#3a4660);background:#1b2340;color:#e8ecf6;font-size:13px;padding:0 2px;cursor:pointer}

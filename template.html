@@ -500,7 +500,7 @@ function renderEditor(){const el=$("#admin-list");if(!el)return;
      <div class="ed-choices">${q.choices.map((c,ci)=>{
        const pos=(edPrevMode==='sp'?c.imgPosSP:c.imgPosPC)||'50% 50%';const pm=pos.match(/(\d+)\s*%?\s+(\d+)\s*%?/);const px=pm?pm[1]:50,py=pm?pm[2]:50;const zoom=(edPrevMode==='sp'?c.imgZoomSP:c.imgZoomPC)||1;
        return `
-       <div class="ed-ch ${q.answer===ci?"ans":""}" data-ci="${ci}"><span class="ed-no">${ci+1}</span>
+       <div class="ed-ch ${q.answer===ci?"ans":""}" data-ci="${ci}"><span class="ed-no">${ci+1}</span><select class="ed-swap" data-act="swap" title="この選択肢を別の番号と入れ替える（文字・写真・位置ごと）"><option value="">⇄</option>${q.choices.map((_,k)=>k===ci?"":`<option value="${k}">${k+1}番と入れ替え</option>`).join("")}</select>
          ${c.img?`<div class="ed-imgwrap" style="flex:0 0 ${edPrevMode==='sp'?'104px':'116px'};display:flex;flex-direction:column;gap:3px">
            <div class="ed-img has" style="flex:none;aspect-ratio:${edPrevMode==='sp'?'16/10':'2/1'};height:auto;width:100%;cursor:grab;position:relative;overflow:hidden;touch-action:none;user-select:none"><img src="${c.img}" draggable="false" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:${pos};transform:scale(${zoom});transform-origin:${pos};pointer-events:none;display:block"><label class="ed-chg" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;padding:2px 6px;border-radius:5px;cursor:pointer;z-index:2">変更<input type="file" accept="image/*" data-act="img" hidden></label></div>
            <label style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)">横<input type="range" data-act="posx" min="0" max="100" value="${px}" style="flex:1"></label>
@@ -520,6 +520,8 @@ function wireEditor(){const host=$("#admin-list");
     saveStore();});
   host.addEventListener("change",e=>{const t=e.target,a=t.dataset.act,card=t.closest(".qed");if(!card||!a)return;const qi=+card.dataset.qi;
     if(a==="time"){questions[qi].time=+t.value;saveStore();}
+    else if(a==="swap"){const q=questions[qi],ci=+t.closest(".ed-ch").dataset.ci,k=+t.value;if(t.value===""||k===ci)return; // 選択肢をまるごと入れ替え（正解の印も追従）
+      [q.choices[ci],q.choices[k]]=[q.choices[k],q.choices[ci]];if(q.answer===ci)q.answer=k;else if(q.answer===k)q.answer=ci;saveStore();renderEditor();}
     else if(a==="imgpos"){questions[qi].choices[+t.closest(".ed-ch").dataset.ci].imgPos=t.value;saveStore();renderEditor();}
     else if(a==="img"){const ci=+t.closest(".ed-ch").dataset.ci;const f=t.files&&t.files[0];if(f)resizeImg(f,u=>{questions[qi].choices[ci].img=u;saveStore();renderEditor();});}});
   host.addEventListener("click",e=>{const t=e.target.closest("[data-act],[data-add]");if(!t)return;
