@@ -460,6 +460,8 @@ body.projector .projhint{display:block}
       <div><h2 style="font-family:var(--ds);font-size:clamp(19px,4vw,24px)">クイズを作る<span class="hostbadge">進行役</span></h2>
       <p class="hint" style="margin:4px 0 0">問題を作って「ルームを作成」。参加者はQRで入れます（アカウント不要）。自動保存（この端末）。<span id="saveSt" style="margin-left:8px"></span></p></div>
       <div class="row" style="gap:8px">
+        <button class="btn ghost sm" id="qExport" title="問題（写真込み）を1つのファイルに保存。別のURLや別のパソコンへ移す時・控え用">📤 問題を書き出す</button>
+        <label class="btn ghost sm" style="cursor:pointer" title="書き出したファイルから問題を読み込む（今の問題と置き換え）">📥 問題を読み込む<input type="file" id="qImport" accept=".json,application/json" hidden></label>
         <button class="btn" id="testBtn">▶ 70人でテスト</button>
         <button class="btn red" id="createRoom">ルームを作成 ▶</button>
       </div>
@@ -1166,6 +1168,17 @@ wireEditor();
 const _testBtn=$("#testBtn");if(_testBtn)_testBtn.onclick=()=>{testMain();};
 const _testBack=$("#testBack");if(_testBack)_testBack.onclick=()=>{$("#testIframe").src="about:blank";show("view-host-home");renderEditor();};
 const _testReload=$("#testReload");if(_testReload)_testReload.onclick=()=>{$("#testIframe").src=location.pathname+"?test=1";};
+/* 問題の書き出し・読み込み（URLごとに保存が別なので、GitHub Pages→本番Netlify などへ移す用。ユーザー指定 2026-10-28） */
+$("#qExport").onclick=()=>{const d=new Date(),st=d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0")+"-"+String(d.getHours()).padStart(2,"0")+String(d.getMinutes()).padStart(2,"0");
+  const blob=new Blob([JSON.stringify({app:"kanshasai-quiz",v:1,exported:d.toISOString(),questions},null,0)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="クイズ問題_"+st+".json";document.body.appendChild(a);a.click();a.remove();
+  saveStatus(true);const el=document.getElementById("saveSt");if(el)el.textContent="📤 書き出しました（ダウンロードに保存："+questions.length+"問）";};
+$("#qImport").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
+  try{const o=JSON.parse(await f.text()),qs=Array.isArray(o)?o:o.questions;if(!Array.isArray(qs)||!qs.length||!qs[0].choices)throw new Error("このクイズの問題ファイルではありません");
+    if(!confirm(`「${f.name}」の ${qs.length}問 を読み込みます。\n今この画面にある ${questions.length}問 は置き換わります（直前の問題は控えとして残します）。よろしいですか？`))return;
+    try{if(!QDB.db)await QDB.open();await QDB.put("questions_backup",JSON.parse(JSON.stringify(questions)));}catch(_){}
+    questions=qs;saveStore();renderEditor();const el=document.getElementById("saveSt");if(el)el.textContent="📥 "+qs.length+"問を読み込みました";
+  }catch(err){alert("読み込めませんでした："+err.message);}};
 loadQuestionsDB().finally(()=>{try{renderEditor();}catch(e){}boot();}); // 保存した問題を読み込んでから開始
 window.addEventListener("resize",()=>{const cv=$("#confetti");if(!cv.hidden){cv.width=innerWidth;cv.height=innerHeight;}
   if(!$("#view-host-q").hidden)fitQ($("#hStage"));if(!$("#view-player-q").hidden)fitQ($("#pStage"));});
