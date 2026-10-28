@@ -295,3 +295,9 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
   /* 練習バッジは重ねず、上に通常配置 */
   .pracbadge{position:static;display:inline-block;margin:0 0 8px;font-size:13px}
 }
+/* 縦書きの半角数字：1〜2桁は縦中横、3桁以上は1文字ずつ正立（ユーザー指定 2026-10-28） */
+.qvert span.qn{text-combine-upright:all;-webkit-text-combine:horizontal;display:inline;overflow:visible;font-size:inherit;line-height:inherit;letter-spacing:0;white-space:nowrap}
+/* 予想問題：紹介前の枠は空（番号だけ）→ スペースで1人ずつ写真と名前が出る */
+.predhide .panel:not(.shown) .body img,.predhide .panel:not(.shown) .body .ph,.predhide .panel:not(.shown) .nm{visibility:hidden}
+.panel.introfx .body img,.panel.introfx .nm{animation:introPop .6s ease-out}
+@keyframes introPop{0%{opacity:0;filter:brightness(2.2)}100%{opacity:1;filter:none}}

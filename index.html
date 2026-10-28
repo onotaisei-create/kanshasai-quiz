@@ -308,6 +308,12 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
   /* 練習バッジは重ねず、上に通常配置 */
   .pracbadge{position:static;display:inline-block;margin:0 0 8px;font-size:13px}
 }
+/* 縦書きの半角数字：1〜2桁は縦中横、3桁以上は1文字ずつ正立（ユーザー指定 2026-10-28） */
+.qvert span.qn{text-combine-upright:all;-webkit-text-combine:horizontal;display:inline;overflow:visible;font-size:inherit;line-height:inherit;letter-spacing:0;white-space:nowrap}
+/* 予想問題：紹介前の枠は空（番号だけ）→ スペースで1人ずつ写真と名前が出る */
+.predhide .panel:not(.shown) .body img,.predhide .panel:not(.shown) .body .ph,.predhide .panel:not(.shown) .nm{visibility:hidden}
+.panel.introfx .body img,.panel.introfx .nm{animation:introPop .6s ease-out}
+@keyframes introPop{0%{opacity:0;filter:brightness(2.2)}100%{opacity:1;filter:none}}
 
 /* app-specific */
 .lobby-card{background:linear-gradient(180deg,rgba(26,92,214,.5),rgba(8,32,90,.72));border:1px solid var(--line);border-radius:18px;padding:clamp(18px,2.4vw,34px) clamp(22px,4vw,72px)}
@@ -499,10 +505,11 @@ body.projector .projhint{display:block}
       <button class="btn adv" id="hReveal" hidden>解答締め切り・正解発表</button>
       <button class="btn blue adv" id="hNext" hidden>次の問題へ</button>
       <button class="btn red adv" id="hToResults" hidden>個人成績ランキングへ</button>
+      <button class="btn blue adv" id="predNext" hidden>1番を紹介</button>
       <button class="btn ghost sm" id="projBtn2">⛶ プロジェクター表示</button>
     </div>
     <div id="predPick" hidden class="row center" style="gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
-      <b style="color:var(--gold-hi);font-size:clamp(14px,1.6vw,20px)">実際の勝者を選んでください（キー1〜4でもOK）→</b>
+      <b style="color:var(--gold-hi);font-size:clamp(14px,1.6vw,20px)">実践のあと、勝った人の番号キー（テンキー1〜4）で正解発表 →</b>
       <button class="btn blue" data-pw="0">①</button>
       <button class="btn blue" data-pw="1">②</button>
       <button class="btn blue" data-pw="2">③</button>
@@ -620,11 +627,13 @@ function panelMarkup(c,i){
   const body=c.img?`<div class="body"><img src="${c.img}" alt="" style="--ps:${c.imgPosSP||'50% 50%'};--pp:${c.imgPosPC||'50% 50%'};--zs:${+c.imgZoomSP||1};--zp:${+c.imgZoomPC||1}"></div>`:`<div class="body"><span class="ph">画像なし</span></div>`;
   return `${body}<div class="bar"><span class="no tnum">${i+1}</span><span class="nm">${esc(c.text)||("選択"+(i+1))}</span><span class="cnt tnum" hidden></span></div>`;
 }
+// 縦書きで半角数字が横倒しになるのを防ぐ：1〜2桁＝縦中横、3桁以上＝1文字ずつ正立（ユーザー指定）
+function qText(t){return esc(t).replace(/[0-9]+/g,d=>d.length<=2?`<span class="qn">${d}</span>`:[...d].map(c=>`<span class="qn">${c}</span>`).join(""));}
 function boardHTML(q){
   return `${q.practice?'<div class="pracbadge">練習問題（得点に入りません）</div>':''}${q.predict?'<div class="pracbadge" style="background:linear-gradient(180deg,#bfe4ff,#3f93dd);color:#062a47">予想問題（その場で勝者を決定）</div>':''}<div class="stagegrid">
     <div class="qpanels">${q.choices.map((c,i)=>`<div class="panel" data-i="${i}">${panelMarkup(c,i)}</div>`).join("")}</div>
     <div class="qcol"><div class="qcol-logo">ALL STAR<br>感謝祭</div><div class="qbadge">Q</div>
-      <div class="qvert"><span>${esc(q.q)}</span></div>
+      <div class="qvert"><span>${qText(q.q)}</span></div>
       <div class="count"><div class="cnum tnum" data-cnum>${q.time||10}</div></div></div>
   </div>
   <div class="liveout"><span class="livecount" data-live><span class="dot"></span><span data-livetext></span></span><span class="resultline" data-rl hidden></span></div>`;
@@ -704,7 +713,8 @@ let lastNav=0;
 // （以前は fullscreenchange で自動解除しており、戻る操作等で勝手にプロジェクターが外れていた）
 document.addEventListener("keydown",e=>{if(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
   if(e.repeat)return; // 長押しのリピートで複数回進む/戻るのを防止（戻るが一気にロビーまで行く不具合対策）
-  if(isHost&&!document.getElementById("predPick").hidden&&e.key>="1"&&e.key<="4"){e.preventDefault();pickWinner(+e.key-1);return;} // 予想問題：勝者をキー1〜4で選ぶ
+  {const nk=/^Numpad[1-4]$/.test(e.code||"")?+e.code.slice(6):(e.key>="1"&&e.key<="4"&&e.key.length===1?+e.key:0);
+   if(isHost&&nk&&!document.getElementById("predPick").hidden){e.preventDefault();pickWinner(nk-1);return;}} // 予想問題：勝った人の番号キー（テンキー/数字キー1〜4）で正解発表
   if(e.key===" "||e.key==="Enter"||e.key==="ArrowRight"){
     if(isHost&&!document.getElementById("view-end").hidden){e.preventDefault();goHome();return;} // エンディングでSpace→ホーム
     const secs=["view-host-lobby","view-host-q","view-host-results"];
@@ -738,7 +748,7 @@ function goBack(){
 }
 function restoreReveal(i){
   hCurQ=i;bgmStop();show("view-host-q");
-  const q=Q[i];const st=$("#hStage");st.innerHTML=boardHTML(q);fitQ(st);
+  const q=Q[i];const st=$("#hStage");st.classList.remove("predhide");st.innerHTML=boardHTML(q);fitQ(st);
   roomRef.child("answers/"+i).once("value",s=>{const c=[0,0,0,0];s.forEach(ch=>{const a=ch.val();if(a&&a.choice>=0&&a.choice<4)c[a.choice]++;});
     applyReveal(st,q,c);roomRef.child("state").update({phase:"reveal",qIndex:i});
     $("#hReveal").hidden=true;$("#hNext").hidden=(i>=Q.length-1);$("#hToResults").hidden=(i<Q.length-1);});
@@ -862,28 +872,50 @@ $("#startQuiz").onclick=()=>{navHist.push({t:"lobby"});hostStartQuestion(0);};
 function hostStartQuestion(i){
   hCurQ=i;
   show("view-host-q");
-  const q=Q[i];const st=$("#hStage");st.innerHTML=boardHTML(q);fitQ(st);
+  const q=Q[i];const st=$("#hStage");st.classList.remove("predhide");st.innerHTML=boardHTML(q);fitQ(st);
   $("#hReveal").hidden=false;$("#hNext").hidden=true;$("#hToResults").hidden=true;
-  $("#predPick").hidden=true;$("#hReveal").textContent=q.predict?"予想を締め切る（集計）":"解答締め切り・正解発表";
+  $("#predPick").hidden=true;$("#predNext").hidden=true;$("#hReveal").textContent="解答締め切り・正解発表";
+  if(hAnsRef)hAnsRef.off();
+  if(q.predict){predIntroStart(st);return;} // 予想問題：まず問題だけ映す（カウントダウンなし）→スペースで1人ずつ紹介
   roomRef.child("state").set({phase:"question",qIndex:i,time:q.time||10,at:firebase.database.ServerValue.TIMESTAMP});
   bgmPlay();
   startCountdown(st,q.time||10,()=>{const lt=st.querySelector("[data-livetext]");if(lt)lt.innerHTML="時間切れ — <b style='color:var(--gold-hi)'>「正解発表」</b>を押してください";});
-  if(hAnsRef)hAnsRef.off();
   hAnsRef=roomRef.child("answers/"+i);
   hAnsRef.on("value",s=>{const n=s.numChildren();const lt=st.querySelector("[data-livetext]");if(lt&&!/時間切れ/.test(lt.innerHTML))lt.textContent=n+" 人が回答";});
 }
+/* ===== 予想問題の進行（ユーザー指定 2026-10-28）=====
+   出題（カウントダウンなし・枠は空）→ スペースで1番から順に写真と名前 → 4人そろってスペースでカウントダウン開始
+   → 時間切れ後、実践 → 勝った人の番号キーで正解発表（この問題だけスペースでは発表しない） */
+let predStep=0;
+function predIntroStart(st){
+  predStep=0;st.classList.add("predhide");
+  const lt=st.querySelector("[data-livetext]");if(lt)lt.textContent="予想問題 — スペースで1番の人から紹介";
+  $("#hReveal").hidden=true;predBtn();predSync();
+}
+function predBtn(){const b=$("#predNext");b.hidden=false;b.textContent=predStep<4?(predStep+1)+"番を紹介":"カウントダウン開始";}
+function predSync(){if(!testing&&roomRef)roomRef.child("state").set({phase:"predintro",qIndex:hCurQ,shown:predStep});}
+function predShow(st,k){const el=st.querySelector(`.panel[data-i="${k}"]`);if(el){el.classList.add("shown","introfx");}}
+$("#predNext").onclick=()=>{
+  const st=$("#hStage");
+  if(predStep<4){predShow(st,predStep);predStep++;predBtn();predSync();
+    const lt=st.querySelector("[data-livetext]");if(lt)lt.textContent=predStep<4?`${predStep}人目を紹介しました — スペースで次の人`:"4人そろいました — スペースでカウントダウン開始";return;}
+  $("#predNext").hidden=true;st.classList.remove("predhide");
+  if(testing){testCountdown(questions[testIdx]);return;}
+  const i=hCurQ,q=Q[i];
+  roomRef.child("state").set({phase:"question",qIndex:i,time:q.time||10,at:firebase.database.ServerValue.TIMESTAMP});
+  bgmPlay();
+  startCountdown(st,q.time||10,()=>predTimeUp(st));
+  hAnsRef=roomRef.child("answers/"+i);
+  hAnsRef.on("value",s=>{const n=s.numChildren();const lt=st.querySelector("[data-livetext]");if(lt&&!/時間切れ/.test(lt.innerHTML))lt.textContent=n+" 人が予想";});
+};
+function predTimeUp(st){bgmStop();const lt=st.querySelector("[data-livetext]");if(lt)lt.innerHTML="時間切れ — 実践のあと、<b style='color:var(--gold-hi)'>勝った人の番号キー（1〜4）</b>で正解発表";$("#predPick").hidden=false;}
 let predCounts=[0,0,0,0];
 $("#hReveal").onclick=()=>{
   navHist.push({t:"question",i:hCurQ});
   const i=hCurQ,q=Q[i];
   roomRef.child("answers/"+i).once("value",s=>{
     const counts=[0,0,0,0];s.forEach(ch=>{const a=ch.val();if(a&&a.choice>=0&&a.choice<4)counts[a.choice]++;});
-    if(q.predict){ // 予想問題：枠光り・BGMなしで予想人数だけ表示 → 勝者をボタン/キーで選ぶ
-      predCounts=counts;showPredict($("#hStage"),counts);
-      roomRef.child("state").update({phase:"predict"});
-      $("#hReveal").hidden=true;$("#predPick").hidden=false;
-      return;
-    }
+    if(q.predict)return; // 予想問題はスペースでは発表しない（勝った人の番号キーで発表）
     applyReveal($("#hStage"),q,counts);bgmStop();
     roomRef.child("state").update({phase:"reveal"});
     $("#hReveal").hidden=true;if(i<Q.length-1)$("#hNext").hidden=false;else $("#hToResults").hidden=false;
@@ -898,11 +930,17 @@ function showPredict(stageEl,counts){
   fitChoices(stageEl);
 }
 function pickWinner(k){
-  const i=hCurQ,q=Q[i];if(!q||!q.predict||$("#predPick").hidden)return;
-  q.answer=k; // 勝者＝正解。hostResultsがchoice===answerで採点
-  applyReveal($("#hStage"),q,predCounts); // ここで枠光り＋効果音
-  if(roomRef){roomRef.child("questions/"+i+"/answer").set(k);roomRef.child("state").update({phase:"reveal",predAns:k});}
-  $("#predPick").hidden=true;if(i<Q.length-1)$("#hNext").hidden=false;else $("#hToResults").hidden=false;
+  if($("#predPick").hidden)return;
+  if(testing){testPickWinner(k);return;}
+  const i=hCurQ,q=Q[i];if(!q||!q.predict)return;
+  $("#predPick").hidden=true;navHist.push({t:"question",i});
+  roomRef.child("answers/"+i).once("value",s=>{
+    const counts=[0,0,0,0];s.forEach(ch=>{const a=ch.val();if(a&&a.choice>=0&&a.choice<4)counts[a.choice]++;});
+    q.answer=k; // 勝者＝正解。hostResultsがchoice===answerで採点
+    applyReveal($("#hStage"),q,counts); // 枠光り＋予想人数＋効果音
+    roomRef.child("questions/"+i+"/answer").set(k);roomRef.child("state").update({phase:"reveal",predAns:k});
+    if(i<Q.length-1)$("#hNext").hidden=false;else $("#hToResults").hidden=false;
+  });
 }
 document.querySelectorAll("#predPick [data-pw]").forEach(b=>b.onclick=()=>pickWinner(+b.dataset.pw));
 $("#hNext").onclick=()=>{navHist.push({t:"reveal",i:hCurQ});hostStartQuestion(hCurQ+1);};
@@ -993,14 +1031,14 @@ function playerOnState(st){
       renderPlayerQ(st.qIndex);
     }
   } else if(phase==="reveal"){ if(st.predAns!=null&&Q[st.qIndex])Q[st.qIndex].answer=st.predAns; playerReveal(st.qIndex); }
-  else if(phase==="predict"){ /* 予想集計中：参加者は回答済みのまま待機 */ }
+  else if(phase==="predintro"){ playerPredIntro(st.qIndex,st.shown||0); } // 予想問題の紹介中：順に写真と名前が出る・まだ回答できない
   else if(phase==="results"){ playerResult(); }
   else if(phase==="ending"){ $("#endMsg").innerHTML="ご参加ありがとうございました"; show("view-end"); }
   lastPhase=phase;
 }
 function renderPlayerQ(i){
   const q=Q[i];if(!q)return;answeredQ=-1;pPick=-1;
-  show("view-player-q");const st=$("#pStage");st.innerHTML=boardHTML(q);fitQ(st);
+  show("view-player-q");const st=$("#pStage");st.classList.remove("predhide");st.dataset.pq=String(i);st.innerHTML=boardHTML(q);fitQ(st);
   qLocalStart=performance.now();
   $("#pConfirm").disabled=true;$("#pConfirm").textContent="パネルを選んでください";$("#pConfirm").hidden=false;
   bgmPlay();
@@ -1031,6 +1069,14 @@ function playerReveal(i){
   });
   bgmStop();
 }
+function playerPredIntro(i,shown){
+  const q=Q[i];if(!q)return;const st=$("#pStage");
+  if($("#view-player-q").hidden||st.dataset.pq!==String(i)||!st.classList.contains("predhide")){
+    show("view-player-q");st.innerHTML=boardHTML(q);st.dataset.pq=String(i);st.classList.add("predhide");fitQ(st);
+    const cn=st.querySelector("[data-cnum]");if(cn)cn.textContent=q.time||10;
+    $("#pConfirm").hidden=false;$("#pConfirm").disabled=true;$("#pConfirm").textContent="予想問題 — 4人の紹介のあとに回答できます";}
+  for(let k=0;k<shown;k++){const el=st.querySelector(`.panel[data-i="${k}"]`);if(el&&!el.classList.contains("shown"))el.classList.add("shown","introfx");}
+}
 function playerResult(){
   show("view-player-result");
   $("#plResult").innerHTML='結果発表中！<br><span style="font-size:.5em;color:var(--muted)">プロジェクター（前の画面）にご注目ください 👀</span>';
@@ -1048,11 +1094,16 @@ function testMain(){
 }
 function testLoadQ(i){
   testIdx=i;const q=questions[i];if(!q){testResults();return;}
-  show("view-host-q");const st=$("#hStage");st.innerHTML=boardHTML(q);fitQ(st);
-  $("#hReveal").hidden=false;$("#hNext").hidden=true;$("#hToResults").hidden=true;
+  show("view-host-q");const st=$("#hStage");st.classList.remove("predhide");st.innerHTML=boardHTML(q);fitQ(st);
+  $("#hReveal").hidden=false;$("#hNext").hidden=true;$("#hToResults").hidden=true;$("#predPick").hidden=true;$("#predNext").hidden=true;
   const lim=q.time||10;
-  testPerQ=testP.map(p=>{const correct=Math.random()<p.skill;let pick=q.answer;if(!correct){do{pick=Math.random()*4|0;}while(pick===q.answer);}let ms=Math.round((p.speed+Math.random()*2.2)*1000);if(ms>lim*1000)ms=lim*1000;return{p,pick,correct,ms};}).sort((a,b)=>a.ms-b.ms);
-  bgmPlay();
+  testPerQ=testP.map(p=>{const correct=Math.random()<p.skill;let pick=q.predict?(Math.random()*4|0):q.answer;if(!q.predict&&!correct){do{pick=Math.random()*4|0;}while(pick===q.answer);}let ms=Math.round((p.speed+Math.random()*2.2)*1000);if(ms>lim*1000)ms=lim*1000;return{p,pick,correct:q.predict?false:correct,ms};}).sort((a,b)=>a.ms-b.ms);
+  if(testRAF)cancelAnimationFrame(testRAF);
+  if(q.predict){hCurQ=i;predIntroStart(st);return;} // 予想問題は紹介→スペースでカウントダウン
+  testCountdown(q);
+}
+function testCountdown(q){
+  const st=$("#hStage"),lim=q.time||10;bgmPlay();
   let idx=0;const start=performance.now(),lt=st.querySelector("[data-livetext]");
   if(testRAF)cancelAnimationFrame(testRAF);
   const tick=()=>{const el=(performance.now()-start)/1000,rem=Math.max(0,lim-el);
@@ -1060,13 +1111,24 @@ function testLoadQ(i){
     const cc=st.querySelector(".count");if(cc)cc.classList.toggle("low",rem<=3&&rem>0);
     while(idx<70&&testPerQ[idx].ms<=el*1000)idx++;
     if(lt)lt.textContent=idx+" / 70 人が回答";
-    if(rem<=0){if(cn)cn.textContent="0";if(cc)cc.classList.remove("low");if(lt)lt.innerHTML="時間切れ — <b style='color:var(--gold-hi)'>正解発表</b>（スペース）";return;}
+    if(rem<=0){if(cn)cn.textContent="0";if(cc)cc.classList.remove("low");
+      if(q.predict){predTimeUp(st);return;}
+      if(lt)lt.innerHTML="時間切れ — <b style='color:var(--gold-hi)'>正解発表</b>（スペース）";return;}
     testRAF=requestAnimationFrame(tick);};
   testRAF=requestAnimationFrame(tick);
+}
+function testPickWinner(k){
+  const q=questions[testIdx];if(!q||!q.predict)return;
+  if(testRAF)cancelAnimationFrame(testRAF);$("#predPick").hidden=true;
+  const counts=[0,0,0,0];testPerQ.forEach(a=>{counts[a.pick]++;a.correct=(a.pick===k);});
+  testPerQ.forEach(a=>{if(a.correct)a.p.correct++;a.p.ms+=a.ms;});
+  applyReveal($("#hStage"),{...q,answer:k},counts);
+  if(testIdx<questions.length-1)$("#hNext").hidden=false;else $("#hToResults").hidden=false;
 }
 function testReveal(){
   if(testRAF)cancelAnimationFrame(testRAF);
   const q=questions[testIdx],counts=[0,0,0,0];
+  if(q.predict)return; // 予想問題はスペースでは発表しない（番号キー）
   testPerQ.forEach(a=>{counts[a.pick]++;});
   if(!q.practice)testPerQ.forEach(a=>{if(a.correct)a.p.correct++;a.p.ms+=a.ms;});
   applyReveal($("#hStage"),q,counts);
