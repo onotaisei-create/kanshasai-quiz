@@ -776,7 +776,7 @@ function submitAnswer(i,q){
   const correct=pPick===q.answer;answeredQ=i;
   roomRef.child("answers/"+i+"/"+uid).set({choice:pPick,ms,correct,at:firebase.database.ServerValue.TIMESTAMP});
   bgmStop();
-  const st=$("#pStage");st.querySelectorAll(".panel").forEach(x=>{if(+x.dataset.i!==pPick)x.style.opacity=".5";});
+  const st=$("#pStage");st.querySelectorAll(".panel").forEach(x=>{x.classList.toggle("picked",+x.dataset.i===pPick);if(+x.dataset.i!==pPick)x.style.opacity=".5";});
   $("#pConfirm").disabled=true;$("#pConfirm").textContent="回答しました（"+(ms/1000).toFixed(1)+"秒）";
 }
 function lockAnswer(i,q,timeup){ if(answeredQ===i)return; if(timeup){answeredQ=i;$("#pConfirm").disabled=true;$("#pConfirm").textContent="時間切れ";} }

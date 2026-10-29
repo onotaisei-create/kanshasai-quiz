@@ -316,6 +316,12 @@ canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
 @keyframes introPop{0%{opacity:0;filter:brightness(2.2)}100%{opacity:1;filter:none}}
 /* 選択肢の入れ替え（⇄） */
 .ed-swap{flex:0 0 auto;width:44px;height:30px;border-radius:8px;border:1px solid var(--line,#3a4660);background:#1b2340;color:#e8ecf6;font-size:13px;padding:0 2px;cursor:pointer}
+/* 参加者スマホ：選んだパネルをはっきり見せる（金の太枠＋光＋✓、他は少し暗く）。進行役のスクリーンには影響しない */
+#pStage .panel{position:relative;transition:opacity .15s,filter .15s,transform .12s}
+#pStage .qpanels:has(.panel.picked) .panel:not(.picked){opacity:.5;filter:saturate(.6)}
+#pStage .panel.picked{outline:4px solid #ffd23f;outline-offset:-4px;box-shadow:0 0 0 3px #ffd23f,0 0 18px 4px rgba(255,210,63,.85);transform:scale(1.02);z-index:2}
+#pStage .panel.picked::after{content:"✓";position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;background:#ffd23f;color:#1a1300;font:900 20px/30px sans-serif;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.4);z-index:3}
+#pStage .panel.picked .bar{background:linear-gradient(180deg,#fff3b8,#ffd23f)}
 
 /* app-specific */
 .lobby-card{background:linear-gradient(180deg,rgba(26,92,214,.5),rgba(8,32,90,.72));border:1px solid var(--line);border-radius:18px;padding:clamp(18px,2.4vw,34px) clamp(22px,4vw,72px)}
@@ -1081,7 +1087,7 @@ function submitAnswer(i,q){
   const correct=pPick===q.answer;answeredQ=i;
   roomRef.child("answers/"+i+"/"+uid).set({choice:pPick,ms,correct,at:firebase.database.ServerValue.TIMESTAMP});
   bgmStop();
-  const st=$("#pStage");st.querySelectorAll(".panel").forEach(x=>{if(+x.dataset.i!==pPick)x.style.opacity=".5";});
+  const st=$("#pStage");st.querySelectorAll(".panel").forEach(x=>{x.classList.toggle("picked",+x.dataset.i===pPick);if(+x.dataset.i!==pPick)x.style.opacity=".5";});
   $("#pConfirm").disabled=true;$("#pConfirm").textContent="回答しました（"+(ms/1000).toFixed(1)+"秒）";
 }
 function lockAnswer(i,q,timeup){ if(answeredQ===i)return; if(timeup){answeredQ=i;$("#pConfirm").disabled=true;$("#pConfirm").textContent="時間切れ";} }
