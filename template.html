@@ -307,9 +307,10 @@ function clk(ms){const s=ms/1000,m=Math.floor(s/60),r=s-m*60;return m+":"+(r<10?
 const SAMPLE_IMGS=__IMGS_JSON__;
 
 /* BGM / SFX */
-const BGM_SRC="data:audio/mpeg;base64,__BGM_B64__";
-const REVEAL_SRC="data:audio/mpeg;base64,__REVEAL_B64__";
-const RESULT_SRC="data:audio/mpeg;base64,__RESULT_B64__";
+const BGM_SRC="bgm.mp3";  // 音源は別ファイル（参加者のスマホは読み込まない＝軽い）
+const REVEAL_SRC="reveal.mp3";
+const RESULT_SRC="result.mp3";
+function preloadAudio(){try{if(!bgm){bgm=new Audio(BGM_SRC);bgm.volume=.7;bgm.preload="auto";}if(!sfx){sfx=new Audio(REVEAL_SRC);sfx.preload="auto";}if(!resbgm){resbgm=new Audio(RESULT_SRC);resbgm.loop=true;resbgm.volume=.6;resbgm.preload="auto";}}catch(e){}} // 進行役だけ先読み
 let bgm=null,sfx=null,resbgm=null,muted=false,silent=false;
 /* 音はホスト(PC)だけ。参加者スマホでは鳴らさない */
 function bgmPlay(){if(!isHost||silent)return;try{if(!bgm){bgm=new Audio(BGM_SRC);bgm.volume=.7;}if(muted)return;bgm.currentTime=0;bgm.play().catch(()=>{});}catch(e){}}
@@ -567,13 +568,14 @@ function boot(){
 
 /* ---------- HOST ---------- */
 function gencode(){const s="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let c="";for(let i=0;i<4;i++)c+=s[Math.random()*s.length|0];return c;}
-function startHost(){renderEditor();show("view-host-home");}
+function startHost(){preloadAudio();renderEditor();show("view-host-home");}
 $("#createRoom").onclick=()=>{
   const bad=questions.findIndex(q=>!(q.q&&q.q.trim()));
   if(bad>=0){renderEditor();$("#admin-list").querySelectorAll(".qed")[bad].scrollIntoView({behavior:"smooth",block:"center"});return;}
   roomCode="TAIYUI";roomRef=db.ref("rooms/"+roomCode);  // 固定コード（QR/URLを毎回同じに。作成時に中身はリセット）
   Q=JSON.parse(JSON.stringify(questions));
-  roomRef.set({host:uid,createdAt:firebase.database.ServerValue.TIMESTAMP,questions:Q,state:{phase:"lobby",qIndex:-1}}).then(openLobby);
+  const session=Date.now().toString(36)+Math.random().toString(36).slice(2,7); // 作り直すたびに新しい回（早く入った人は自動で入り直す）
+  roomRef.set({host:uid,createdAt:firebase.database.ServerValue.TIMESTAMP,meta:{open:true,session},questions:Q,state:{phase:"lobby",qIndex:-1}}).then(openLobby);
 };
 function playerURL(){return location.origin+location.pathname+"?room="+roomCode;}
 function openLobby(){
@@ -731,20 +733,45 @@ $$("#pace .pacebtn").forEach(b=>b.onclick=()=>{paceMul=parseFloat(b.dataset.p);$
 
 /* ---------- PLAYER ---------- */
 let myName=null,qLocalStart=0,pPick=-1,answeredQ=-1;
+/* 参加者：ページを開いたらすぐ入力欄（問題は裏で読む）。ルームを作る前は「受付前」で待機し、開いたら自動で切り替え */
+let pMeta=null,pJoined=null,qLoaded=null;
+const PKEY="kanshasai_player";
+const pSaved=()=>{try{return JSON.parse(localStorage.getItem(PKEY)||"null");}catch(e){return null;}};
+function loadQuestions(){if(!qLoaded)qLoaded=roomRef.child("questions").once("value").then(s=>{Q=s.val()||[];return Q;});return qLoaded;}
 function startPlayer(){
   $("#mute").hidden=true;
   roomRef=db.ref("rooms/"+roomCode);
-  roomRef.child("questions").once("value").then(s=>{Q=s.val()||[];
-    roomRef.once("value").then(r=>{ if(!r.exists()){$("#joinErr").textContent="ルームが見つかりません";show("view-join");return;}
-      show("view-join"); });
+  show("view-join");setJoinOpen(false,"読み込み中…");
+  roomRef.child("meta").on("value",s=>{
+    const m=s.val();pMeta=m;
+    if(!m||!m.open){setJoinOpen(false);return;}
+    qLoaded=null;loadQuestions(); // 新しい回の問題を裏で読み込む
+    const sv=pSaved();
+    if(sv&&sv.name&&sv.room===roomCode){ // 以前この端末で参加した人：同じニックネームで自動で入る（作り直された時も）
+      if(pJoined!==m.session)joinAs(sv.name,m.session);return;}
+    setJoinOpen(true);
   });
 }
-$("#joinBtn").onclick=()=>{
-  myName=($("#joinName").value||"").trim();if(!myName){$("#joinErr").textContent="名前を入れてください";return;}
-  roomRef.child("players/"+uid).set({name:myName,at:firebase.database.ServerValue.TIMESTAMP}).then(()=>{
-    $("#plWelcome").textContent="ようこそ "+myName+" さん";
-    roomRef.child("state").on("value",s=>playerOnState(s.val()||{}));
+function setJoinOpen(open,msg){
+  const b=$("#joinBtn"),inp=$("#joinName");b.disabled=!open;inp.disabled=!open;
+  $(".waitbig","#view-join");const t=document.querySelector("#view-join .waitbig"),h=document.querySelector("#view-join .hint");
+  if(open){t.textContent="ようこそ！";h.textContent="ニックネームを入れて参加";$("#joinErr").textContent="";}
+  else{t.textContent=msg||"まだ受付前です";h.textContent=msg?"":"クイズ大会が始まると、この画面が自動で切り替わります。このままお待ちください。";}
+}
+function joinAs(name,session){
+  myName=name;pJoined=session;
+  try{localStorage.setItem(PKEY,JSON.stringify({name,room:roomCode}));}catch(e){}
+  roomRef.child("players/"+uid).set({name,at:firebase.database.ServerValue.TIMESTAMP}).then(()=>{
+    $("#plWelcome").textContent="ようこそ "+name+" さん";
+    if(!pStateOn){pStateOn=true;roomRef.child("state").on("value",s=>{const st=s.val()||{};loadQuestions().then(()=>playerOnState(st));});}
+    else roomRef.child("state").once("value").then(s=>{const st=s.val()||{};loadQuestions().then(()=>playerOnState(st));});
   });
+}
+let pStateOn=false;
+$("#joinBtn").onclick=()=>{
+  const name=($("#joinName").value||"").trim();if(!name){$("#joinErr").textContent="名前を入れてください";return;}
+  if(!pMeta||!pMeta.open){setJoinOpen(false);return;}
+  joinAs(name,pMeta.session);
 };
 function playerOnState(st){
   const phase=st.phase;
@@ -810,7 +837,7 @@ const TSUR=["佐藤","鈴木","高橋","田中","渡辺","伊藤","山本","中�
 const TGIV=["翔","大輔","健","彩","美咲","拓也","結衣","涼","直樹","葵","陸","莉子","悠真","さくら","蓮","凛","颯太","芽依","大和","陽菜","駿","航","七海","亮","楓","誠","杏","隼人","瑞希","春","千尋","理央"];
 let testP=[],testIdx=0,testPerQ=[],testRAF=0;
 function testMain(){
-  isHost=true;silent=false;testing=true;$("#mute").hidden=false;testP=[];const used=new Set();
+  isHost=true;silent=false;testing=true;preloadAudio();$("#mute").hidden=false;testP=[];const used=new Set();
   for(let i=0;i<70;i++){let nm;do{nm=TSUR[Math.random()*TSUR.length|0]+TGIV[Math.random()*TGIV.length|0];}while(used.has(nm)&&used.size<1400);used.add(nm);testP.push({name:nm,correct:0,ms:0,skill:.35+Math.random()*.6,speed:1.1+Math.random()*6.5});}
   $("#hReveal").onclick=testReveal;$("#hNext").onclick=()=>testLoadQ(testIdx+1);$("#hToResults").onclick=testResults;
   testLoadQ(0);

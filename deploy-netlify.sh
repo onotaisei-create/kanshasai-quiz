@@ -3,5 +3,5 @@
 #   NETLIFY_AUTH_TOKEN=nfp_xxx ./deploy-netlify.sh
 set -e
 python3 build.py
-mkdir -p dist && cp index.html dist/index.html && cp resbg.mp4 dist/resbg.mp4
+mkdir -p dist && cp index.html dist/index.html && cp resbg.mp4 dist/resbg.mp4 && cp bgm.mp3 reveal.mp3 result.mp3 dist/
 npx --yes netlify-cli@latest deploy --prod --dir=dist --site=edd204d5-6735-4935-a761-9e7c8f6161cf
